@@ -91,14 +91,21 @@ gulp.task('aggregate:soc', function (cb) {
           pdfjs.getDocument(file.contents).then(function (pdfDocument) {
             pdfDocument.getPage(1).then((page) => {
               page.getTextContent().then((content) => {
-                content.items.forEach(function (item) {
-                  const studentName = item.str;
+                const scales = {};
+                const textEntities = content.items.map((item) => {
+                  const text = item.str;
+                  if (/\d+|[a-z]|^\s*$/g.test(text)) {
+                    // Filter out non-student names
+                    return;
+                  }
+
+                  const studentName = text;
                   if (!students.hasOwnProperty(studentName)) {
                     students[studentName] = [];
                   }
                   students[studentName].push(acadYearSemFull);
-                  students[studentName].sort();
                 });
+
                 gutil.log(`SoC ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
                 resolve();
               });
@@ -107,9 +114,14 @@ gulp.task('aggregate:soc', function (cb) {
         });
       }))
       .then(() => {
+        const sortedStudents = {};
+        Object.keys(students).sort().forEach(function (name) {
+          sortedStudents[name] = students[name].sort();
+        });
+
         const file = new File({
           path: `${SOC}.json`,
-          contents: new Buffer(JSON.stringify(students, null, 2), 'utf-8')
+          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
         });
         cb(null, file);
       });
