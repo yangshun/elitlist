@@ -16,7 +16,9 @@ const _ = require('lodash');
 const RAW_DATA_PATH = 'raw';
 const PARSED_DATA_PATH = 'data';
 const SOC = 'soc';
+const ENGINEERING = 'eng';
 const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC}`;
+const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
 const PARSED_SOC_DATA_PATH = `./${PARSED_DATA_PATH}/${SOC}.json`;
 
 gulp.task('clean:raw', function () {
@@ -25,6 +27,10 @@ gulp.task('clean:raw', function () {
 
 gulp.task('clean:raw:soc', function () {
   return del([RAW_SOC_DATA_PATH]);
+});
+
+gulp.task('clean:raw:eng', function () {
+  return del([RAW_ENGINEERING_DATA_PATH]);
 });
 
 gulp.task('clean:data', function () {
@@ -132,6 +138,43 @@ gulp.task('aggregate:soc', function (cb) {
 
 gulp.task('soc', function (cb) {
   runSequence('clean:soc', 'fetch:soc', 'aggregate:soc', cb);
+});
+
+gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
+  const ENGINEERING_DATA_HOST = 'http://www.eng.nus.edu.sg';
+  const ENGINEERING_DATA_PATH = '/ugrad/awards.html';
+
+  rp({
+    uri: `${ENGINEERING_DATA_HOST}${ENGINEERING_DATA_PATH}`,
+    transform: function (body) {
+      return cheerio.load(body);
+    }
+  }).then(function ($) {
+    gutil.log('Engineering Dean\'s List page fetched');
+    const $links = $('#table2 a');
+    const linksHrefs = $links.filter(function () {
+                          return /\.pdf$/.test($(this).attr('href'));
+                        })
+                        .map(function () {
+                          return $(this).attr('href');
+                        })
+                        .toArray();
+    Promise
+      .all(linksHrefs.map(function (linkHref) {
+        return new Promise(function (resolve, reject) {
+          const regexMatches = new RegExp(/([^\/]*)\.pdf/).exec(linkHref);
+          const fileName = regexMatches[regexMatches.length - 1];
+          request
+            .get(`${ENGINEERING_DATA_HOST}/ugrad/${linkHref}`)
+            .pipe(source(`${fileName}.pdf`))
+            .pipe(gulp.dest(RAW_ENGINEERING_DATA_PATH))
+            .on('end', resolve);
+        });
+      }))
+      .then(() => {
+        cb();
+      });
+  });
 });
 
 gulp.task('default');
