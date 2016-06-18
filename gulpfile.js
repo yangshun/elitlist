@@ -1,4 +1,5 @@
 const gulp = require('gulp');
+const runSequence = require('run-sequence');
 const request = require('request');
 const rp = require('request-promise');
 const cheerio = require('cheerio');
@@ -6,17 +7,37 @@ const pdfjs = require('pdfjs-dist');
 const fs = require('graceful-fs');
 const source = require('vinyl-source-stream');
 const del = require('del');
+const through = require('through2');
+const gutil = require('gulp-util');
+const chalk = require('chalk');
+const File = require('vinyl');
 
 const RAW_DATA_PATH = 'raw';
-const SOC_PATH = 'soc';
+const PARSED_DATA_PATH = 'data';
+const SOC = 'soc';
+const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC}`;
+const PARSED_SOC_DATA_PATH = `./${PARSED_DATA_PATH}/${SOC}.json`;
 
-gulp.task('cleanraw', function () {
+gulp.task('clean:raw', function () {
   return del([RAW_DATA_PATH]);
 });
 
-gulp.task('soc', ['cleanraw'], function () {
-  const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC_PATH}`;
+gulp.task('clean:raw:soc', function () {
+  return del([RAW_SOC_DATA_PATH]);
+});
 
+gulp.task('clean:data', function () {
+  return del([PARSED_DATA_PATH]);
+});
+
+gulp.task('clean:data:soc', function () {
+  return del([PARSED_SOC_DATA_PATH]);
+});
+
+gulp.task('clean:soc', ['clean:raw:soc', 'clean:data:soc']);
+gulp.task('clean', ['clean:raw', 'clean:data']);
+
+gulp.task('fetch:soc', ['clean:raw:soc'], function (cb) {
   const SOC_DATA_HOST = 'http://www.comp.nus.edu.sg';
   const SOC_DATA_PATH = '/programmes/ug/honour/deans';
 
@@ -26,27 +47,78 @@ gulp.task('soc', ['cleanraw'], function () {
       return cheerio.load(body);
     }
   }).then(function ($) {
-    console.log('SoC Dean\'s List page fetched');
+    gutil.log('SoC Dean\'s List page fetched');
     const $links = $('#t3-content .article-content a');
     const linksHrefs = $links.filter(function () {
                           return /\.pdf$/.test($(this).attr('href'));
                         })
                         .map(function () {
                           return $(this).attr('href');
-                        });
-    linksHrefs.each(function (i, linkHref) {
-      const regexMatches = new RegExp(/([^\/]*)\.pdf/).exec(linkHref);
-      const fileName = regexMatches[regexMatches.length - 1];
-      request
-        .get(`${SOC_DATA_HOST}${linkHref}`)
-        .pipe(source(`${fileName}.pdf`))
-        .pipe(gulp.dest(RAW_SOC_DATA_PATH));
-    });
+                        })
+                        .toArray();
+    Promise
+      .all(linksHrefs.map(function (linkHref) {
+        return new Promise(function (resolve, reject) {
+          const regexMatches = new RegExp(/([^\/]*)\.pdf/).exec(linkHref);
+          const fileName = regexMatches[regexMatches.length - 1];
+          request
+            .get(`${SOC_DATA_HOST}${linkHref}`)
+            .pipe(source(`${fileName}.pdf`))
+            .pipe(gulp.dest(RAW_SOC_DATA_PATH))
+            .on('end', resolve);
+        });
+      }))
+      .then(() => {
+        cb();
+      });
   });
 });
 
-gulp.task('compilesoc', ['cleanraw', 'soc'], function () {
+gulp.task('aggregate:soc', function (cb) {
+  const students = {};
 
+  return gulp.src(`${RAW_SOC_DATA_PATH}/*.pdf`)
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        return new Promise(function (resolve, reject) {
+          const regexMatches = new RegExp(/\w*(\d{3})0[^\/]*\.pdf/).exec(file.path);
+          const acadYearAndSem = regexMatches[regexMatches.length - 1];
+          const acadYear = acadYearAndSem.substring(0, 2);
+          const sem = acadYearAndSem.substring(2);
+          const acadYearSemFull = `AY${acadYear}/${parseInt(acadYear) + 1} Sem ${sem}`;
+
+          pdfjs.getDocument(file.contents).then(function (pdfDocument) {
+            pdfDocument.getPage(1).then((page) => {
+              page.getTextContent().then((content) => {
+                content.items.forEach(function (item) {
+                  const studentName = item.str;
+                  if (!students.hasOwnProperty(studentName)) {
+                    students[studentName] = [];
+                  }
+                  students[studentName].push(acadYearSemFull);
+                  students[studentName].sort();
+                });
+                gutil.log(`SoC ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+                resolve();
+              });
+            })
+          });
+        });
+      }))
+      .then(() => {
+        const file = new File({
+          path: `${SOC}.json`,
+          contents: new Buffer(JSON.stringify(students, null, 2), 'utf-8')
+        });
+        cb(null, file);
+      });
+    }))
+    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
 });
 
-gulp.task('default', ['cleanraw', 'soc']);
+gulp.task('soc', function (cb) {
+  runSequence('clean:soc', 'fetch:soc', 'aggregate:soc', cb);
+});
+
+gulp.task('default');
