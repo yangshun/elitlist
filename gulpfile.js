@@ -11,6 +11,7 @@ const through = require('through2');
 const gutil = require('gulp-util');
 const chalk = require('chalk');
 const File = require('vinyl');
+const _ = require('lodash');
 
 const RAW_DATA_PATH = 'raw';
 const PARSED_DATA_PATH = 'data';
@@ -116,7 +117,7 @@ gulp.task('aggregate:soc', function (cb) {
       .then(() => {
         const sortedStudents = {};
         Object.keys(students).sort().forEach(function (name) {
-          sortedStudents[name] = students[name].sort();
+          sortedStudents[name.split(' ').map(_.capitalize).join(' ')] = students[name].sort();
         });
 
         const file = new File({

@@ -26,6 +26,7 @@
     "gulp": "^3.9.1",
     "gulp-remote-src": "^0.4.1",
     "gulp-util": "^3.0.7",
+    "lodash": "^4.13.1",
     "request": "^2.72.0",
     "request-promise": "^3.0.0",
     "run-sequence": "^1.2.1",
