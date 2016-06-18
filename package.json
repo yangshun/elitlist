@@ -25,6 +25,7 @@
     "gulp": "^3.9.1",
     "gulp-remote-src": "^0.4.1",
     "request": "^2.72.0",
-    "request-promise": "^3.0.0"
+    "request-promise": "^3.0.0",
+    "vinyl-source-stream": "^1.1.0"
   }
 }
