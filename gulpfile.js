@@ -21,6 +21,17 @@ const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC}`;
 const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
 const PARSED_SOC_DATA_PATH = `./${PARSED_DATA_PATH}/${SOC}.json`;
 
+function nameFormatter(name) {
+  const formattedName =  name.split(' ')
+                          .map((fragment) => {
+                            return _.includes(['S/O', 'D/O'], fragment) ? fragment : _.capitalize(fragment);
+                          })
+                          .join(' ')
+                          .trim()
+                          .replace(/\s*-\s*/g, '-');
+  return formattedName;
+}
+
 gulp.task('clean:raw', function () {
   return del([RAW_DATA_PATH]);
 });
@@ -98,7 +109,6 @@ gulp.task('aggregate:soc', function (cb) {
           pdfjs.getDocument(file.contents).then(function (pdfDocument) {
             pdfDocument.getPage(1).then((page) => {
               page.getTextContent().then((content) => {
-                const scales = {};
                 const textEntities = content.items.map((item) => {
                   const text = item.str;
                   if (/\d+|[a-z]|^\s*$/g.test(text)) {
@@ -153,7 +163,7 @@ gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
     gutil.log('Engineering Dean\'s List page fetched');
     const $links = $('#table2 a');
     const linksHrefs = $links.filter(function () {
-                          return /\.pdf$/.test($(this).attr('href'));
+                          return /Dean.*\.pdf$/.test($(this).attr('href'));
                         })
                         .map(function () {
                           return $(this).attr('href');
@@ -174,6 +184,47 @@ gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
       .then(() => {
         cb();
       });
+  });
+});
+
+gulp.task('aggregate:eng', function (cb) {
+  var data = new Uint8Array(fs.readFileSync('./raw/eng/Dean\'s_List_AY2015-16_Sem_1.pdf'));
+
+  pdfjs.getDocument(data).then(function (pdfDocument) {
+    const numPages = pdfDocument.numPages;
+    const rows = {};
+    Promise.all(_.range(1, numPages + 1).map(function (pageNum) {
+      return new Promise(function (resolve, reject) {
+        pdfDocument.getPage(pageNum).then((page) => {
+          page.getTextContent().then((content) => {
+            content.items.forEach(function (item) {
+              const rowId = `${pageNum}-${parseInt(item.transform[5])}`;
+              if (!rows.hasOwnProperty(rowId)) {
+                rows[rowId] = '';
+              }
+              if (item.str.trim()) {
+                rows[rowId] += ` ${item.str.trim()}`;
+                rows[rowId] = rows[rowId].trim();
+              }
+            });
+            resolve();
+          });
+        });
+      });
+    })).then(function () {
+      const studentNames = [];
+      _.values(rows).forEach((row) => {
+        // Removes the S/N, (DDP), year (e.g. MPE3) from each row
+        const studentName = row.replace(/(\d+|[A-Z]{3}\d|\(DDP\))/g, '')
+                                .replace(/’/g, '\'')
+                                .replace(/‐/g, '-');
+        if (studentName.trim() !== '' && !/(course|semester)/i.test(studentName)) {
+          studentNames.push(nameFormatter(studentName));
+        }
+      });
+      console.log(_.uniq(studentNames));
+      console.log(_.uniq(studentNames).length);
+    });
   });
 });
 
