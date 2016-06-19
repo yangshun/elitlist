@@ -214,11 +214,11 @@ gulp.task('aggregate:eng', function (cb) {
     })).then(function () {
       const studentNames = [];
       _.values(rows).forEach((row) => {
-        // Removes the S/N, (DDP), year (e.g. MPE3) from each row
-        const studentName = row.replace(/(\d+|[A-Z]{3}\d|\(DDP\))/g, '')
+        // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
+        const studentName = row.replace(/(\d+|[A-Z]?[a-z]?[A-Z]{2}\d?|B\.Tech|\(DDP\))/g, '')
                                 .replace(/’/g, '\'')
                                 .replace(/‐/g, '-');
-        if (studentName.trim() !== '' && !/(course|semester)/i.test(studentName)) {
+        if (studentName.trim() !== '' && !/(course|semester|name|major)/i.test(studentName)) {
           studentNames.push(nameFormatter(studentName));
         }
       });
