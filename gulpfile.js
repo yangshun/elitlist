@@ -188,44 +188,75 @@ gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
 });
 
 gulp.task('aggregate:eng', function (cb) {
-  var data = new Uint8Array(fs.readFileSync('./raw/eng/Dean\'s_List_AY2015-16_Sem_1.pdf'));
+  const students = {};
 
-  pdfjs.getDocument(data).then(function (pdfDocument) {
-    const numPages = pdfDocument.numPages;
-    const rows = {};
-    Promise.all(_.range(1, numPages + 1).map(function (pageNum) {
-      return new Promise(function (resolve, reject) {
-        pdfDocument.getPage(pageNum).then((page) => {
-          page.getTextContent().then((content) => {
-            content.items.forEach(function (item) {
-              const rowId = `${pageNum}-${parseInt(item.transform[5])}`;
-              if (!rows.hasOwnProperty(rowId)) {
-                rows[rowId] = '';
-              }
-              if (item.str.trim()) {
-                rows[rowId] += ` ${item.str.trim()}`;
-                rows[rowId] = rows[rowId].trim();
-              }
+  return gulp.src(`${RAW_ENGINEERING_DATA_PATH}/*.pdf`)
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        return new Promise(function (resolve, reject) {
+          const regexMatches = new RegExp(/\w*AY20(\d{2})-(\d{2})_Sem_(\d{1})*\.pdf/).exec(file.path);
+          const acadYearSemFull = `AY${regexMatches[1]}/${regexMatches[2]} Sem ${regexMatches[3]}`;
+
+          pdfjs.getDocument(file.contents).then(function (pdfDocument) {
+            const numPages = pdfDocument.numPages;
+            const rows = {};
+            Promise.all(_.range(1, numPages + 1).map(function (pageNum) {
+              return new Promise(function (resolve2, reject2) {
+                pdfDocument.getPage(pageNum).then((page) => {
+                  page.getTextContent().then((content) => {
+                    content.items.forEach((item) => {
+                      const rowId = `${pageNum}-${parseInt(item.transform[5])}`;
+                      if (!rows.hasOwnProperty(rowId)) {
+                        rows[rowId] = '';
+                      }
+                      if (item.str.trim()) {
+                        rows[rowId] += ` ${item.str.trim()}`;
+                        rows[rowId] = rows[rowId].trim();
+                      }
+                    });
+                    resolve2();
+                  });
+                });
+              });
+            }))
+            .then(function () {
+              const studentNames = [];
+              _.values(rows).forEach((row) => {
+                // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
+                const studentName = row.replace(/(\d+|[A-Z]?[a-z]?[A-Z]{2}\d?|B\.Tech|\(DDP\))/g, '')
+                                        .replace(/’/g, '\'')
+                                        .replace(/‐/g, '-');
+                if (studentName.trim() !== '' && !/(course|semester|name|major)/i.test(studentName)) {
+                  studentNames.push(nameFormatter(studentName));
+                }
+              });
+              _.uniq(studentNames).forEach((studentName) => {
+                if (!students.hasOwnProperty(studentName)) {
+                  students[studentName] = [];
+                }
+                students[studentName].push(acadYearSemFull);
+              });
+              gutil.log(`Engineering ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+              resolve();
             });
-            resolve();
           });
         });
+      }))
+      .then(() => {
+        const sortedStudents = {};
+        Object.keys(students).sort().forEach(function (name) {
+          sortedStudents[name.split(' ').map(_.capitalize).join(' ')] = students[name].sort();
+        });
+
+        const file = new File({
+          path: `${ENGINEERING}.json`,
+          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
+        });
+        cb(null, file);
       });
-    })).then(function () {
-      const studentNames = [];
-      _.values(rows).forEach((row) => {
-        // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
-        const studentName = row.replace(/(\d+|[A-Z]?[a-z]?[A-Z]{2}\d?|B\.Tech|\(DDP\))/g, '')
-                                .replace(/’/g, '\'')
-                                .replace(/‐/g, '-');
-        if (studentName.trim() !== '' && !/(course|semester|name|major)/i.test(studentName)) {
-          studentNames.push(nameFormatter(studentName));
-        }
-      });
-      console.log(_.uniq(studentNames));
-      console.log(_.uniq(studentNames).length);
-    });
-  });
+    }))
+    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
 });
 
 gulp.task('default');
