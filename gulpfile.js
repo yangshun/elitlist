@@ -224,7 +224,8 @@ gulp.task('aggregate:eng', function (cb) {
               const studentNames = [];
               _.values(rows).forEach((row) => {
                 // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
-                const studentName = row.replace(/(\d+|[A-Z]?[a-z]?[A-Z]{2}\d?|B\.Tech|\(DDP\))/g, '')
+                const studentName = row.replace(/(\d+|B\.Tech|\(DDP\))/g, '')
+                                        .replace(/ [A-Z]?[a-z]?[A-Z]{2}\d?$/, '')
                                         .replace(/’/g, '\'')
                                         .replace(/‐/g, '-');
                 if (studentName.trim() !== '' && !/(course|semester|name|major)/i.test(studentName)) {
