@@ -12,6 +12,7 @@ const gutil = require('gulp-util');
 const chalk = require('chalk');
 const File = require('vinyl');
 const _ = require('lodash');
+const toTitleCase = require('./utils/toTitleCase');
 
 const RAW_DATA_PATH = 'raw';
 const PARSED_DATA_PATH = 'data';
@@ -22,13 +23,13 @@ const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
 const PARSED_SOC_DATA_PATH = `./${PARSED_DATA_PATH}/${SOC}.json`;
 
 function nameFormatter(name) {
-  const formattedName =  name.split(' ')
-                          .map((fragment) => {
-                            return _.includes(['S/O', 'D/O'], fragment) ? fragment : _.capitalize(fragment);
-                          })
-                          .join(' ')
-                          .trim()
-                          .replace(/\s*-\s*/g, '-');
+  const formattedName = name.split(' ')
+                        .map((fragment) => {
+                          return _.includes(['S/O', 'D/O'], fragment) ? fragment : toTitleCase(fragment);
+                        })
+                        .join(' ')
+                        .trim()
+                        .replace(/\s*-\s*/g, '-');
   return formattedName;
 }
 
