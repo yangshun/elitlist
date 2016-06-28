@@ -360,4 +360,8 @@ gulp.task('aggregate:biz', function (cb) {
     .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
 });
 
+gulp.task('biz', function (cb) {
+  runSequence('clean:biz', 'fetch:biz', 'aggregate:biz', cb);
+});
+
 gulp.task('default');
