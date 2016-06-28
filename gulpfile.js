@@ -29,7 +29,14 @@ const PARSED_ENGINEERING_DATA_PATH = `./${PARSED_DATA_PATH}/${ENGINEERING}.json`
 const PARSED_BUSINESS_DATA_PATH = `./${PARSED_DATA_PATH}/${BUSINESS}.json`;
 
 function nameFormatter(name) {
-  const formattedName = name.split(' ')
+  const formattedName = name
+                        .replace(/\s*-\s*/g, '-')
+                        .replace(/’/g, '\'')
+                        .replace(/‐/g, '-')
+                        .split(' ')
+                        .filter(function (fragment) {
+                          return !_.isEmpty(fragment);
+                        })
                         .map((fragment) => {
                           var newFragment = fragment.trim();
                           if (fragment !== 'S/O' && fragment !== 'D/O') {
@@ -39,7 +46,6 @@ function nameFormatter(name) {
                           return newFragment;
                         })
                         .join(' ')
-                        .replace(/\s*-\s*/g, '-')
                         .trim();
   return formattedName;
 }
@@ -251,9 +257,7 @@ gulp.task('aggregate:eng', function (cb) {
               _.values(rows).forEach((row) => {
                 // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
                 const studentName = row.replace(/(\d+|B\.Tech|\(DDP\))/g, '')
-                                        .replace(/ [A-Z]?[a-z]?[A-Z]{2}\d?$/, '')
-                                        .replace(/’/g, '\'')
-                                        .replace(/‐/g, '-');
+                                        .replace(/ [A-Z]?[a-z]?[A-Z]{2}\d?$/, '');
                 if (studentName.trim() !== '' && !/(course|semester|name|major)/i.test(studentName)) {
                   studentNames.push(nameFormatter(studentName));
                 }
@@ -288,6 +292,72 @@ gulp.task('aggregate:eng', function (cb) {
 
 gulp.task('eng', function (cb) {
   runSequence('clean:eng', 'fetch:eng', 'aggregate:eng', cb);
+});
+
+gulp.task('fetch:biz', ['clean:raw:biz'], function (cb) {
+  const BUSINESS_DATA_HOST = 'http://bba.nus.edu/';
+  const BUSINESS_DATA_PATH = '/bba/honour_deanslist.htm';
+
+  request
+    .get(`${BUSINESS_DATA_HOST}${BUSINESS_DATA_PATH}`)
+    .pipe(source('honour_deanslist.html'))
+    .pipe(gulp.dest(RAW_BUSINESS_DATA_PATH))
+    .on('end', cb);
+});
+
+gulp.task('aggregate:biz', function (cb) {
+  const students = {};
+
+  return gulp.src(`${RAW_BUSINESS_DATA_PATH}/*.html`)
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        return new Promise(function (resolve, reject) {
+          const $ = cheerio.load(file.contents.toString());
+          $('table.bord').each(function () {
+            const $table = $(this);
+            const tableHeader = $table.find('td[colspan=4] strong').text();
+
+            const regexMatches = new RegExp(/(\d) AY20(\d{2})\/(?:20)?(\d{2})/).exec(tableHeader);
+            const acadYear = regexMatches[2];
+            const nextAcadYear = regexMatches[3];
+            const sem = regexMatches[1];
+            const acadYearSemFull = `AY${acadYear}/${nextAcadYear} Sem ${sem}`;
+
+            $table.find('td').each(function () {
+              const $td = $(this);
+              const text = $td.text();
+              if (/\d+|[a-z]|^\s*$/g.test(text)) {
+                // Filter out non-student names
+                return;
+              }
+              const studentName = nameFormatter(text);
+              if (!students.hasOwnProperty(studentName)) {
+                students[studentName] = [];
+              }
+              students[studentName].push(acadYearSemFull);
+            });
+
+            gutil.log(`SoC ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+          });
+
+          resolve();
+        });
+      }))
+      .then(() => {
+        const sortedStudents = {};
+        Object.keys(students).sort().forEach(function (name) {
+          sortedStudents[name] = students[name].sort();
+        });
+
+        const file = new File({
+          path: `${BUSINESS}.json`,
+          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
+        });
+        cb(null, file);
+      });
+    }))
+    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
 });
 
 gulp.task('default');
