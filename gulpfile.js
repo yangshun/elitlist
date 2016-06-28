@@ -16,9 +16,9 @@ const _ = require('lodash');
 const RAW_DATA_PATH = 'raw';
 const PARSED_DATA_PATH = 'data';
 
-const SOC = 'soc';
-const ENGINEERING = 'engineering';
-const BUSINESS = 'business';
+const SOC = 'SoC';
+const ENGINEERING = 'Engineering';
+const BUSINESS = 'Business';
 
 const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC}`;
 const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
@@ -364,4 +364,39 @@ gulp.task('biz', function (cb) {
   runSequence('clean:biz', 'fetch:biz', 'aggregate:biz', cb);
 });
 
-gulp.task('default');
+gulp.task('aggregate:all', function (cb) {
+  var students = {};
+
+  return gulp.src([PARSED_SOC_DATA_PATH, PARSED_ENGINEERING_DATA_PATH, PARSED_BUSINESS_DATA_PATH])
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        const faculty = new RegExp(/(\w*)\.json/i).exec(file.relative)[1];
+        return new Promise(function (resolve, reject) {
+          const facultyStudents = JSON.parse(file.contents.toString());
+          const facultyAnnotatedStudents = _.mapKeys(facultyStudents, function (value, studentName) {
+            return `${studentName} - ${faculty}`;
+          });
+          students = _.merge({}, students, facultyAnnotatedStudents);
+          resolve();
+        });
+      }))
+      .then(() => {
+        const sortedStudents = {};
+        Object.keys(students).sort().forEach(function (name) {
+          sortedStudents[name] = students[name].sort();
+        });
+
+        const file = new File({
+          path: `Combined.json`,
+          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
+        });
+        cb(null, file);
+      });
+    }))
+    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
+});
+
+gulp.task('default', function (cb) {
+  runSequence(['clean:data', 'clean:raw'], ['biz', 'soc', 'eng'], 'aggregate:all', cb);
+});
