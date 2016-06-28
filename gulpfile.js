@@ -338,7 +338,7 @@ gulp.task('aggregate:biz', function (cb) {
               students[studentName].push(acadYearSemFull);
             });
 
-            gutil.log(`SoC ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+            gutil.log(`Business ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
           });
 
           resolve();
