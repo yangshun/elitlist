@@ -12,24 +12,35 @@ const gutil = require('gulp-util');
 const chalk = require('chalk');
 const File = require('vinyl');
 const _ = require('lodash');
-const toTitleCase = require('./utils/toTitleCase');
 
 const RAW_DATA_PATH = 'raw';
 const PARSED_DATA_PATH = 'data';
+
 const SOC = 'soc';
-const ENGINEERING = 'eng';
+const ENGINEERING = 'engineering';
+const BUSINESS = 'business';
+
 const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC}`;
 const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
+const RAW_BUSINESS_DATA_PATH = `./${RAW_DATA_PATH}/${BUSINESS}`;
+
 const PARSED_SOC_DATA_PATH = `./${PARSED_DATA_PATH}/${SOC}.json`;
+const PARSED_ENGINEERING_DATA_PATH = `./${PARSED_DATA_PATH}/${ENGINEERING}.json`;
+const PARSED_BUSINESS_DATA_PATH = `./${PARSED_DATA_PATH}/${BUSINESS}.json`;
 
 function nameFormatter(name) {
   const formattedName = name.split(' ')
                         .map((fragment) => {
-                          return _.includes(['S/O', 'D/O'], fragment) ? fragment : toTitleCase(fragment);
+                          var newFragment = fragment.trim();
+                          if (fragment !== 'S/O' && fragment !== 'D/O') {
+                            // If not S/O or D/O, capitalize first letter
+                            newFragment = fragment[0] === '(' ? `(${fragment[1].toUpperCase()}${fragment.substring(2).toLowerCase()}` : _.capitalize(fragment);
+                          }
+                          return newFragment;
                         })
                         .join(' ')
-                        .trim()
-                        .replace(/\s*-\s*/g, '-');
+                        .replace(/\s*-\s*/g, '-')
+                        .trim();
   return formattedName;
 }
 
@@ -45,6 +56,10 @@ gulp.task('clean:raw:eng', function () {
   return del([RAW_ENGINEERING_DATA_PATH]);
 });
 
+gulp.task('clean:raw:biz', function () {
+  return del([RAW_BUSINESS_DATA_PATH]);
+});
+
 gulp.task('clean:data', function () {
   return del([PARSED_DATA_PATH]);
 });
@@ -53,7 +68,17 @@ gulp.task('clean:data:soc', function () {
   return del([PARSED_SOC_DATA_PATH]);
 });
 
+gulp.task('clean:data:eng', function () {
+  return del([PARSED_ENGINEERING_DATA_PATH]);
+});
+
+gulp.task('clean:data:biz', function () {
+  return del([PARSED_BUSINESS_DATA_PATH]);
+});
+
 gulp.task('clean:soc', ['clean:raw:soc', 'clean:data:soc']);
+gulp.task('clean:eng', ['clean:raw:eng', 'clean:data:eng']);
+gulp.task('clean:biz', ['clean:raw:biz', 'clean:data:biz']);
 gulp.task('clean', ['clean:raw', 'clean:data']);
 
 gulp.task('fetch:soc', ['clean:raw:soc'], function (cb) {
@@ -117,7 +142,7 @@ gulp.task('aggregate:soc', function (cb) {
                     return;
                   }
 
-                  const studentName = text;
+                  const studentName = nameFormatter(text);
                   if (!students.hasOwnProperty(studentName)) {
                     students[studentName] = [];
                   }
@@ -248,7 +273,7 @@ gulp.task('aggregate:eng', function (cb) {
       .then(() => {
         const sortedStudents = {};
         Object.keys(students).sort().forEach(function (name) {
-          sortedStudents[name.split(' ').map(_.capitalize).join(' ')] = students[name].sort();
+          sortedStudents[name] = students[name].sort();
         });
 
         const file = new File({
@@ -259,6 +284,10 @@ gulp.task('aggregate:eng', function (cb) {
       });
     }))
     .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
+});
+
+gulp.task('eng', function (cb) {
+  runSequence('clean:eng', 'fetch:eng', 'aggregate:eng', cb);
 });
 
 gulp.task('default');
