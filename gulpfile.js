@@ -366,7 +366,7 @@ gulp.task('biz', function (cb) {
 });
 
 gulp.task('aggregate:all', function (cb) {
-  var students = {};
+  const students = {};
 
   return gulp.src([PARSED_SOC_DATA_PATH, PARSED_ENGINEERING_DATA_PATH, PARSED_BUSINESS_DATA_PATH])
     .pipe(gutil.buffer())
@@ -375,22 +375,27 @@ gulp.task('aggregate:all', function (cb) {
         const faculty = new RegExp(/(\w*)\.json/i).exec(file.relative)[1];
         return new Promise(function (resolve, reject) {
           const facultyStudents = JSON.parse(file.contents.toString());
-          const facultyAnnotatedStudents = _.mapKeys(facultyStudents, function (value, studentName) {
-            return `${studentName} - ${faculty}`;
+          const facultyAnnotatedStudents = {};
+          _.forEach(facultyStudents, function (value, studentName) {
+            facultyAnnotatedStudents[`${studentName} - ${faculty}`] = {
+              Name: studentName,
+              Faculty: faculty,
+              DeansList: value
+            };
           });
-          students = _.merge({}, students, facultyAnnotatedStudents);
+          _.merge(students, facultyAnnotatedStudents);
           resolve();
         });
       }))
       .then(() => {
-        const sortedStudents = {};
-        Object.keys(students).sort().forEach(function (name) {
-          sortedStudents[name] = students[name].sort();
+        const studentsData = Object.keys(students).sort().map(function (name) {
+          students[name].DeansList.sort();
+          return students[name];
         });
 
         const file = new File({
           path: `Combined.json`,
-          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
+          contents: new Buffer(JSON.stringify(studentsData, null, 2), 'utf-8')
         });
         cb(null, file);
       });
