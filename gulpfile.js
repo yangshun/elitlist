@@ -33,6 +33,7 @@ function nameFormatter(name) {
                         .replace(/\s*-\s*/g, '-')
                         .replace(/’/g, '\'')
                         .replace(/‐/g, '-')
+                        .replace(/\n/g, ' ')
                         .split(' ')
                         .filter(function (fragment) {
                           return !_.isEmpty(fragment);
