@@ -16,15 +16,15 @@ const _ = require('lodash');
 const RAW_DATA_PATH = 'raw';
 const PARSED_DATA_PATH = 'data';
 
-const SOC = 'SoC';
+const COMPUTING = 'Computing';
 const ENGINEERING = 'Engineering';
 const BUSINESS = 'Business';
 
-const RAW_SOC_DATA_PATH = `./${RAW_DATA_PATH}/${SOC}`;
+const RAW_COMPUTING_DATA_PATH = `./${RAW_DATA_PATH}/${COMPUTING}`;
 const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
 const RAW_BUSINESS_DATA_PATH = `./${RAW_DATA_PATH}/${BUSINESS}`;
 
-const PARSED_SOC_DATA_PATH = `./${PARSED_DATA_PATH}/${SOC}.json`;
+const PARSED_COMPUTING_DATA_PATH = `./${PARSED_DATA_PATH}/${COMPUTING}.json`;
 const PARSED_ENGINEERING_DATA_PATH = `./${PARSED_DATA_PATH}/${ENGINEERING}.json`;
 const PARSED_BUSINESS_DATA_PATH = `./${PARSED_DATA_PATH}/${BUSINESS}.json`;
 
@@ -55,8 +55,8 @@ gulp.task('clean:raw', function () {
   return del([RAW_DATA_PATH]);
 });
 
-gulp.task('clean:raw:soc', function () {
-  return del([RAW_SOC_DATA_PATH]);
+gulp.task('clean:raw:com', function () {
+  return del([RAW_COMPUTING_DATA_PATH]);
 });
 
 gulp.task('clean:raw:eng', function () {
@@ -71,8 +71,8 @@ gulp.task('clean:data', function () {
   return del([PARSED_DATA_PATH]);
 });
 
-gulp.task('clean:data:soc', function () {
-  return del([PARSED_SOC_DATA_PATH]);
+gulp.task('clean:data:com', function () {
+  return del([PARSED_COMPUTING_DATA_PATH]);
 });
 
 gulp.task('clean:data:eng', function () {
@@ -83,17 +83,17 @@ gulp.task('clean:data:biz', function () {
   return del([PARSED_BUSINESS_DATA_PATH]);
 });
 
-gulp.task('clean:soc', ['clean:raw:soc', 'clean:data:soc']);
+gulp.task('clean:com', ['clean:raw:com', 'clean:data:com']);
 gulp.task('clean:eng', ['clean:raw:eng', 'clean:data:eng']);
 gulp.task('clean:biz', ['clean:raw:biz', 'clean:data:biz']);
 gulp.task('clean', ['clean:raw', 'clean:data']);
 
-gulp.task('fetch:soc', ['clean:raw:soc'], function (cb) {
-  const SOC_DATA_HOST = 'http://www.comp.nus.edu.sg';
-  const SOC_DATA_PATH = '/programmes/ug/honour/deans';
+gulp.task('fetch:com', ['clean:raw:com'], function (cb) {
+  const COMPUTING_DATA_HOST = 'http://www.comp.nus.edu.sg';
+  const COMPUTING_DATA_PATH = '/programmes/ug/honour/deans';
 
   rp({
-    uri: `${SOC_DATA_HOST}${SOC_DATA_PATH}`,
+    uri: `${COMPUTING_DATA_HOST}${COMPUTING_DATA_PATH}`,
     transform: function (body) {
       return cheerio.load(body);
     }
@@ -113,9 +113,9 @@ gulp.task('fetch:soc', ['clean:raw:soc'], function (cb) {
           const regexMatches = new RegExp(/([^\/]*)\.pdf/).exec(linkHref);
           const fileName = regexMatches[regexMatches.length - 1];
           request
-            .get(`${SOC_DATA_HOST}${linkHref}`)
+            .get(`${COMPUTING_DATA_HOST}${linkHref}`)
             .pipe(source(`${fileName}.pdf`))
-            .pipe(gulp.dest(RAW_SOC_DATA_PATH))
+            .pipe(gulp.dest(RAW_COMPUTING_DATA_PATH))
             .on('end', resolve);
         });
       }))
@@ -125,10 +125,10 @@ gulp.task('fetch:soc', ['clean:raw:soc'], function (cb) {
   });
 });
 
-gulp.task('aggregate:soc', function (cb) {
+gulp.task('aggregate:com', function (cb) {
   const students = {};
 
-  return gulp.src(`${RAW_SOC_DATA_PATH}/*.pdf`)
+  return gulp.src(`${RAW_COMPUTING_DATA_PATH}/*.pdf`)
     .pipe(gutil.buffer())
     .pipe(through.obj(function (files, enc, cb) {
       Promise.all(files.map(function (file) {
@@ -170,7 +170,7 @@ gulp.task('aggregate:soc', function (cb) {
         });
 
         const file = new File({
-          path: `${SOC}.json`,
+          path: `${COMPUTING}.json`,
           contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
         });
         cb(null, file);
@@ -179,8 +179,8 @@ gulp.task('aggregate:soc', function (cb) {
     .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
 });
 
-gulp.task('soc', function (cb) {
-  runSequence('clean:soc', 'fetch:soc', 'aggregate:soc', cb);
+gulp.task('com', function (cb) {
+  runSequence('clean:com', 'fetch:com', 'aggregate:com', cb);
 });
 
 gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
@@ -217,6 +217,50 @@ gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
       .then(() => {
         cb();
       });
+  });
+});
+
+gulp.task('aggregate:eng:debug', function (cb) {
+  // For debugging
+  var data = new Uint8Array(fs.readFileSync('./raw/eng/Dean\'s_List_AY2009-10_Sem_2.pdf'));
+
+  pdfjs.getDocument(data).then(function (pdfDocument) {
+    const numPages = pdfDocument.numPages;
+    const rows = {};
+    Promise.all(_.range(1, numPages + 1).map(function (pageNum) {
+      return new Promise(function (resolve, reject) {
+        pdfDocument.getPage(pageNum).then((page) => {
+          page.getTextContent().then((content) => {
+            content.items.forEach(function (item) {
+              const rowId = `${pageNum}-${parseInt(item.transform[5])}`;
+              if (!rows.hasOwnProperty(rowId)) {
+                rows[rowId] = '';
+              }
+              if (item.str.trim()) {
+                rows[rowId] += ` ${item.str.trim()}`;
+                rows[rowId] = rows[rowId].trim();
+              }
+            });
+            resolve();
+          });
+        });
+      });
+    })).then(function () {
+      const studentNames = [];
+      _.values(rows).forEach((row) => {
+        // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
+        const studentName = row.replace(/(\d+|B\.Tech|\(DDP\))/g, '')
+                                .replace(/ [A-Z]?[a-z]?[A-Z]{2}\d?$/, '')
+                                .replace(/’/g, '\'')
+                                .replace(/‐/g, '-');
+        console.log(row, studentName);
+        if (studentName.trim() !== '' && !/(course|semester|name|major)/i.test(studentName)) {
+          studentNames.push(nameFormatter(studentName));
+        }
+      });
+      // console.log(_.uniq(studentNames).sort());
+      console.log(_.uniq(studentNames).length);
+    });
   });
 });
 
@@ -368,7 +412,7 @@ gulp.task('biz', function (cb) {
 gulp.task('aggregate:all', function (cb) {
   const students = {};
 
-  return gulp.src([PARSED_SOC_DATA_PATH, PARSED_ENGINEERING_DATA_PATH, PARSED_BUSINESS_DATA_PATH])
+  return gulp.src([PARSED_COMPUTING_DATA_PATH, PARSED_ENGINEERING_DATA_PATH, PARSED_BUSINESS_DATA_PATH])
     .pipe(gutil.buffer())
     .pipe(through.obj(function (files, enc, cb) {
       Promise.all(files.map(function (file) {
@@ -404,5 +448,5 @@ gulp.task('aggregate:all', function (cb) {
 });
 
 gulp.task('default', function (cb) {
-  runSequence(['clean:data', 'clean:raw'], ['biz', 'soc', 'eng'], 'aggregate:all', cb);
+  runSequence(['clean:data', 'clean:raw'], ['biz', 'com', 'eng'], 'aggregate:all', cb);
 });
