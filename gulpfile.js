@@ -31,6 +31,7 @@ const COMMENCEMENT_AWARDS_DIR = 'commencement';
 const DEANS_LIST_FILE = 'DeansList';
 const FACULTY_AWARDS_FILE = 'Faculty';
 const COMMENCEMENT_AWARDS_FILE = 'Commencement';
+const AGGREGATED_FILE = 'Aggregated';
 
 const RAW_COMPUTING_DATA_PATH = `./${RAW_DATA_PATH}/${COMPUTING}`;
 const RAW_COMPUTING_DEANS_LIST_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${DEANS_LIST_AWARDS_DIR}`;
@@ -213,7 +214,7 @@ gulp.task('aggregate:com:deanslist', function (cb) {
                   });
                 });
 
-                gutil.log(`SoC ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+                gutil.log(`${COMPUTING} ${acadYearSemFull} ${DEANS_LIST}`, chalk.green('✔ ') );
                 resolve();
               });
             })
@@ -350,15 +351,60 @@ gulp.task('aggregate:com:commencement', function (cb) {
 });
 
 gulp.task('fetch:com', function (cb) {
-  runSequence(['fetch:com:deanslist', 'fetch:com:faculty', 'fetch:com:commencement'], cb);
+  runSequence([
+    'fetch:com:deanslist',
+    'fetch:com:faculty',
+    'fetch:com:commencement'
+  ], cb);
 });
 
+function aggregateForFaculty(parsedDataPath) {
+  const students = {};
+  const fileTypes = [DEANS_LIST_FILE, FACULTY_AWARDS_FILE, COMMENCEMENT_AWARDS_FILE];
+  return gulp.src(fileTypes.map((fileType) => `${parsedDataPath}/${fileType}.json`))
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        return new Promise(function (resolve, reject) {
+          const studentsForType = JSON.parse(file.contents.toString());
+          Object.keys(studentsForType).forEach(function (name) {
+            if (!students.hasOwnProperty(name)) {
+              students[name] = [];
+            }
+            students[name] = students[name].concat(studentsForType[name]);
+          });
+
+          resolve();
+        });
+      }))
+      .then(() => {
+        const studentsData = {};
+        Object.keys(students).sort().forEach(function (name) {
+          return studentsData[name] = students[name];
+        });
+
+        const file = new File({
+          path: `${AGGREGATED_FILE}.json`,
+          contents: new Buffer(JSON.stringify(studentsData, null, 2), 'utf-8')
+        });
+        cb(null, file);
+      });
+    }))
+    .pipe(gulp.dest(`./${parsedDataPath}`));
+}
+
 gulp.task('aggregate:com', function (cb) {
-  runSequence(['aggregate:com:deanslist'], cb);
+  return aggregateForFaculty(PARSED_COMPUTING_DATA_PATH);
 });
 
 gulp.task('com', function (cb) {
-  runSequence('clean:com', 'fetch:com', 'aggregate:com', cb);
+  runSequence('clean:com', 'fetch:com',
+    [
+      'aggregate:com:deanslist',
+      'aggregate:com:faculty',
+      'aggregate:com:commencement'
+    ],
+    'aggregate:com', cb);
 });
 
 gulp.task('fetch:eng:deanslist', ['clean:raw:eng'], function (cb) {
@@ -496,7 +542,8 @@ gulp.task('aggregate:eng:deanslist', function (cb) {
                   Sem: sem
                 });
               });
-              gutil.log(`Engineering ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+
+              gutil.log(`${ENGINEERING} ${acadYearSemFull} ${DEANS_LIST}`, chalk.green('✔ ') );
               resolve();
             });
           });
@@ -518,8 +565,12 @@ gulp.task('aggregate:eng:deanslist', function (cb) {
     .pipe(gulp.dest(PARSED_ENGINEERING_DATA_PATH));
 });
 
+gulp.task('aggregate:eng', function (cb) {
+  return aggregateForFaculty(PARSED_ENGINEERING_DATA_PATH);
+});
+
 gulp.task('eng', function (cb) {
-  runSequence('clean:eng', 'fetch:eng:deanslist', 'aggregate:eng:deanslist', cb);
+  runSequence('clean:eng', 'fetch:eng:deanslist', 'aggregate:eng:deanslist', 'aggregate:eng', cb);
 });
 
 gulp.task('fetch:biz:deanslist', ['clean:raw:biz'], function (cb) {
@@ -549,7 +600,8 @@ gulp.task('aggregate:biz:deanslist', function (cb) {
             const acadYear = regexMatches[2];
             const nextAcadYear = regexMatches[3];
             const sem = regexMatches[1];
-            const acadYearSemFull = `AY${acadYear}/${nextAcadYear} Sem ${sem}`;
+            const acadYearFull = `AY${acadYear}/${nextAcadYear}`;
+            const acadYearSemFull = `${acadYearFull} Sem ${sem}`;
 
             $table.find('td').each(function () {
               const $td = $(this);
@@ -562,10 +614,14 @@ gulp.task('aggregate:biz:deanslist', function (cb) {
               if (!students.hasOwnProperty(studentName)) {
                 students[studentName] = [];
               }
-              students[studentName].push(acadYearSemFull);
+              students[studentName].push({
+                Type: DEANS_LIST,
+                AcadYear: acadYearFull,
+                Sem: sem
+              });
             });
 
-            gutil.log(`Business ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
+            gutil.log(`${BUSINESS} ${acadYearSemFull} ${DEANS_LIST}`, chalk.green('✔ ') );
           });
 
           resolve();
@@ -587,18 +643,28 @@ gulp.task('aggregate:biz:deanslist', function (cb) {
     .pipe(gulp.dest(PARSED_BUSINESS_DATA_PATH));
 });
 
+gulp.task('aggregate:biz', function (cb) {
+  return aggregateForFaculty(PARSED_BUSINESS_DATA_PATH);
+});
+
 gulp.task('biz', function (cb) {
-  runSequence('clean:biz', 'fetch:biz:deanslist', 'aggregate:biz:deanslist', cb);
+  runSequence('clean:biz', 'fetch:biz:deanslist', 'aggregate:biz:deanslist', 'aggregate:biz', cb);
 });
 
 gulp.task('aggregate:all', function (cb) {
   const students = {};
 
-  return gulp.src([PARSED_COMPUTING_DATA_PATH, PARSED_ENGINEERING_DATA_PATH, PARSED_BUSINESS_DATA_PATH])
+  const facultyPaths = [
+    PARSED_COMPUTING_DATA_PATH,
+    PARSED_ENGINEERING_DATA_PATH,
+    PARSED_BUSINESS_DATA_PATH
+  ];
+
+  return gulp.src(facultyPaths.map((facultyPath) => `${facultyPath}/${AGGREGATED_FILE}.json`))
     .pipe(gutil.buffer())
     .pipe(through.obj(function (files, enc, cb) {
       Promise.all(files.map(function (file) {
-        const faculty = new RegExp(/(\w*)\.json/i).exec(file.relative)[1];
+        const faculty = new RegExp(/\/(\w+)\/\w+\.json/i).exec(file.path)[1];
         return new Promise(function (resolve, reject) {
           const facultyStudents = JSON.parse(file.contents.toString());
           const facultyAnnotatedStudents = {};
@@ -606,7 +672,7 @@ gulp.task('aggregate:all', function (cb) {
             facultyAnnotatedStudents[`${studentName} - ${faculty}`] = {
               Name: studentName,
               Faculty: faculty,
-              DeansList: value
+              Awards: value
             };
           });
           _.merge(students, facultyAnnotatedStudents);
@@ -615,12 +681,11 @@ gulp.task('aggregate:all', function (cb) {
       }))
       .then(() => {
         const studentsData = Object.keys(students).sort().map(function (name) {
-          students[name].DeansList.sort();
           return students[name];
         });
 
         const file = new File({
-          path: `Combined.json`,
+          path: `${AGGREGATED_FILE}.json`,
           contents: new Buffer(JSON.stringify(studentsData, null, 2), 'utf-8')
         });
         cb(null, file);
