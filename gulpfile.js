@@ -24,7 +24,7 @@ const DEANS_LIST = 'Dean\'s List Award';
 const FACULTY = 'Faculty Award';
 const COMMENCEMENT = 'Commencement Award';
 
-const DEANS_LIST_DIR = 'deans-list';
+const DEANS_LIST_AWARDS_DIR = 'deans-list';
 const FACULTY_AWARDS_DIR = 'faculty';
 const COMMENCEMENT_AWARDS_DIR = 'commencement';
 
@@ -33,13 +33,15 @@ const FACULTY_AWARDS_FILE = 'Faculty';
 const COMMENCEMENT_AWARDS_FILE = 'Commencement';
 
 const RAW_COMPUTING_DATA_PATH = `./${RAW_DATA_PATH}/${COMPUTING}`;
-const RAW_COMPUTING_DEANS_LIST_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${DEANS_LIST_DIR}`;
+const RAW_COMPUTING_DEANS_LIST_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${DEANS_LIST_AWARDS_DIR}`;
+const RAW_COMPUTING_FACULTY_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${FACULTY_AWARDS_DIR}`;
+const RAW_COMPUTING_COMMENCEMENT_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${COMMENCEMENT_AWARDS_DIR}`;
 
 const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
-const RAW_ENGINEERING_DEANS_LIST_DATA_PATH = `${RAW_ENGINEERING_DATA_PATH}/${DEANS_LIST_DIR}`;
+const RAW_ENGINEERING_DEANS_LIST_DATA_PATH = `${RAW_ENGINEERING_DATA_PATH}/${DEANS_LIST_AWARDS_DIR}`;
 
 const RAW_BUSINESS_DATA_PATH = `./${RAW_DATA_PATH}/${BUSINESS}`;
-const RAW_BUSINESS_DEANS_LIST_DATA_PATH = `${RAW_BUSINESS_DATA_PATH}/${DEANS_LIST_DIR}`;
+const RAW_BUSINESS_DEANS_LIST_DATA_PATH = `${RAW_BUSINESS_DATA_PATH}/${DEANS_LIST_AWARDS_DIR}`;
 
 const PARSED_COMPUTING_DATA_PATH = `./${PARSED_DATA_PATH}/${COMPUTING}`;
 const PARSED_ENGINEERING_DATA_PATH = `./${PARSED_DATA_PATH}/${ENGINEERING}`;
@@ -146,14 +148,22 @@ gulp.task('fetch:com:deanslist', function (cb) {
 });
 
 gulp.task('fetch:com:faculty', function (cb) {
-  const COMPUTING_FACULTY_AWARDS_DATA_PATH = '/programmes/ug/honour/faculty';
+  const COMPUTING_FACULTY_AWARDS_DATA_PATHS = ['/programmes/ug/honour/faculty', '/programmes/ug/honour/faculty/more/'];
   const COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${FACULTY_AWARDS_DIR}`;
 
-  request
-    .get(`${COMPUTING_DATA_HOST}${COMPUTING_FACULTY_AWARDS_DATA_PATH}`)
-    .pipe(source('faculty.html'))
-    .pipe(gulp.dest(COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH))
-    .on('end', cb);
+  Promise
+    .all(COMPUTING_FACULTY_AWARDS_DATA_PATHS.map(function (computingFacultyAwardsDataPath, index) {
+      return new Promise(function (resolve, reject) {
+        request
+          .get(`${COMPUTING_DATA_HOST}${computingFacultyAwardsDataPath}`)
+          .pipe(source(`faculty-${index}.html`))
+          .pipe(gulp.dest(COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH))
+          .on('end', resolve);
+      });
+    }))
+    .then(() => {
+        cb();
+      });
 });
 
 gulp.task('fetch:com:commencement', function (cb) {
@@ -226,8 +236,125 @@ gulp.task('aggregate:com:deanslist', function (cb) {
     .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
 });
 
+gulp.task('aggregate:com:faculty', function (cb) {
+  const students = {};
+
+  return gulp.src(`${RAW_COMPUTING_FACULTY_DATA_PATH}/*.html`)
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        return new Promise(function (resolve, reject) {
+          const $ = cheerio.load(file.contents.toString());
+          $('table.newtab').each(function () {
+            const $table = $(this);
+
+            const acadYear = $table.prev().text();
+            const acadYearFull = acadYear.replace(/20/g, '').trim();
+
+            $table.find('tr').each(function () {
+              const $tr = $(this);
+              const $tds = $tr.children('td');
+              const awardName = $tds.first().text();
+              const studentName = nameFormatter($tds.first().next().text());
+
+              if (!students.hasOwnProperty(studentName)) {
+                students[studentName] = [];
+              }
+              students[studentName].push({
+                Type: FACULTY,
+                AcadYear: acadYearFull,
+                AwardName: awardName
+              });
+            });
+
+            gutil.log(`${COMPUTING} ${acadYearFull} ${FACULTY}`, chalk.green('✔ ') );
+          });
+
+          resolve();
+        });
+      }))
+      .then(() => {
+        const sortedStudents = {};
+        Object.keys(students).sort().forEach(function (name) {
+          sortedStudents[name] = students[name].sort();
+        });
+
+        const file = new File({
+          path: `${FACULTY_AWARDS_FILE}.json`,
+          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
+        });
+        cb(null, file);
+      });
+    }))
+    .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
+});
+
+gulp.task('aggregate:com:commencement', function (cb) {
+  const students = {};
+
+  return gulp.src(`${RAW_COMPUTING_COMMENCEMENT_DATA_PATH}/*.html`)
+    .pipe(gutil.buffer())
+    .pipe(through.obj(function (files, enc, cb) {
+      Promise.all(files.map(function (file) {
+        return new Promise(function (resolve, reject) {
+          const $ = cheerio.load(file.contents.toString());
+          $('.article-content table').each(function () {
+            const $table = $(this);
+
+            const $prizePara = $table.prev();
+
+            const prizeName = $prizePara.children('strong').text().trim();
+            // Remove unwanted text from prize paragraph
+            $prizePara.children('a').remove(); // Remove "Click for for more" link
+            $prizePara.children('strong').remove(); // Remove prize name link
+
+            const prizeDesc = $prizePara.text().trim();
+
+            $table.find('tr').each(function () {
+              const $tr = $(this);
+              const $tds = $tr.children('td');
+              const acadYearFull = `AY${$tds.first().text().replace(/20/g, '').replace('-', '/')}`;
+              const studentName = nameFormatter($tds.first().next().text());
+
+              if (!students.hasOwnProperty(studentName)) {
+                students[studentName] = [];
+              }
+              students[studentName].push({
+                Type: COMMENCEMENT,
+                AcadYear: acadYearFull,
+                AwardName: prizeName,
+                AwardDesc: prizeDesc
+              });
+            });
+
+            gutil.log(`${COMPUTING} ${COMMENCEMENT} ${prizeName}`, chalk.green('✔ '));
+          });
+
+          resolve();
+        });
+      }))
+      .then(() => {
+        const sortedStudents = {};
+        Object.keys(students).sort().forEach(function (name) {
+          sortedStudents[name] = students[name].sort();
+        });
+
+        const file = new File({
+          path: `${COMMENCEMENT_AWARDS_FILE}.json`,
+          contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
+        });
+        cb(null, file);
+      });
+    }))
+    .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
+});
+
 gulp.task('fetch:com', function (cb) {
   runSequence(['fetch:com:deanslist', 'fetch:com:faculty', 'fetch:com:commencement'], cb);
+});
+
+gulp.task('aggregate:com', function (cb) {
+  runSequence(['aggregate:com:deanslist'], cb);
 });
 
 gulp.task('com', function (cb) {
@@ -260,7 +387,7 @@ gulp.task('fetch:eng:deanslist', ['clean:raw:eng'], function (cb) {
           request
             .get(`${ENGINEERING_DATA_HOST}/ugrad/${linkHref}`)
             .pipe(source(`${fileName}.pdf`))
-            .pipe(gulp.dest(`${RAW_ENGINEERING_DATA_PATH}/${DEANS_LIST_DIR}`))
+            .pipe(gulp.dest(`${RAW_ENGINEERING_DATA_PATH}/${DEANS_LIST_AWARDS_DIR}`))
             .on('end', resolve);
         });
       }))
@@ -401,7 +528,7 @@ gulp.task('fetch:biz:deanslist', ['clean:raw:biz'], function (cb) {
   request
     .get(`${BUSINESS_DATA_HOST}${BUSINESS_DATA_PATH}`)
     .pipe(source('honour_deanslist.html'))
-    .pipe(gulp.dest(`${RAW_BUSINESS_DATA_PATH}/${DEANS_LIST_DIR}`))
+    .pipe(gulp.dest(`${RAW_BUSINESS_DATA_PATH}/${DEANS_LIST_AWARDS_DIR}`))
     .on('end', cb);
 });
 
