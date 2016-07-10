@@ -20,13 +20,34 @@ const COMPUTING = 'Computing';
 const ENGINEERING = 'Engineering';
 const BUSINESS = 'Business';
 
-const RAW_COMPUTING_DATA_PATH = `./${RAW_DATA_PATH}/${COMPUTING}`;
-const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
-const RAW_BUSINESS_DATA_PATH = `./${RAW_DATA_PATH}/${BUSINESS}`;
+const DEANS_LIST = 'Dean\'s List Award';
+const FACULTY = 'Faculty Award';
+const COMMENCEMENT = 'Commencement Award';
 
-const PARSED_COMPUTING_DATA_PATH = `./${PARSED_DATA_PATH}/${COMPUTING}.json`;
-const PARSED_ENGINEERING_DATA_PATH = `./${PARSED_DATA_PATH}/${ENGINEERING}.json`;
-const PARSED_BUSINESS_DATA_PATH = `./${PARSED_DATA_PATH}/${BUSINESS}.json`;
+const DEANS_LIST_DIR = 'deans-list';
+const FACULTY_AWARDS_DIR = 'faculty';
+const COMMENCEMENT_AWARDS_DIR = 'commencement';
+
+const DEANS_LIST_FILE = 'DeansList';
+const FACULTY_AWARDS_FILE = 'Faculty';
+const COMMENCEMENT_AWARDS_FILE = 'Commencement';
+
+const RAW_COMPUTING_DATA_PATH = `./${RAW_DATA_PATH}/${COMPUTING}`;
+const RAW_COMPUTING_DEANS_LIST_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${DEANS_LIST_DIR}`;
+
+const RAW_ENGINEERING_DATA_PATH = `./${RAW_DATA_PATH}/${ENGINEERING}`;
+const RAW_ENGINEERING_DEANS_LIST_DATA_PATH = `${RAW_ENGINEERING_DATA_PATH}/${DEANS_LIST_DIR}`;
+
+const RAW_BUSINESS_DATA_PATH = `./${RAW_DATA_PATH}/${BUSINESS}`;
+const RAW_BUSINESS_DEANS_LIST_DATA_PATH = `${RAW_BUSINESS_DATA_PATH}/${DEANS_LIST_DIR}`;
+
+const PARSED_COMPUTING_DATA_PATH = `./${PARSED_DATA_PATH}/${COMPUTING}`;
+const PARSED_ENGINEERING_DATA_PATH = `./${PARSED_DATA_PATH}/${ENGINEERING}`;
+const PARSED_BUSINESS_DATA_PATH = `./${PARSED_DATA_PATH}/${BUSINESS}`;
+
+const COMPUTING_DATA_HOST = 'http://www.comp.nus.edu.sg';
+const ENGINEERING_DATA_HOST = 'http://www.eng.nus.edu.sg';
+const BUSINESS_DATA_HOST = 'http://bba.nus.edu';
 
 function nameFormatter(name) {
   const formattedName = name
@@ -88,12 +109,11 @@ gulp.task('clean:eng', ['clean:raw:eng', 'clean:data:eng']);
 gulp.task('clean:biz', ['clean:raw:biz', 'clean:data:biz']);
 gulp.task('clean', ['clean:raw', 'clean:data']);
 
-gulp.task('fetch:com', ['clean:raw:com'], function (cb) {
-  const COMPUTING_DATA_HOST = 'http://www.comp.nus.edu.sg';
-  const COMPUTING_DATA_PATH = '/programmes/ug/honour/deans';
+gulp.task('fetch:com:deanslist', function (cb) {
+  const COMPUTING_DEANS_LIST_DATA_PATH = '/programmes/ug/honour/deans';
 
   rp({
-    uri: `${COMPUTING_DATA_HOST}${COMPUTING_DATA_PATH}`,
+    uri: `${COMPUTING_DATA_HOST}${COMPUTING_DEANS_LIST_DATA_PATH}`,
     transform: function (body) {
       return cheerio.load(body);
     }
@@ -115,7 +135,7 @@ gulp.task('fetch:com', ['clean:raw:com'], function (cb) {
           request
             .get(`${COMPUTING_DATA_HOST}${linkHref}`)
             .pipe(source(`${fileName}.pdf`))
-            .pipe(gulp.dest(RAW_COMPUTING_DATA_PATH))
+            .pipe(gulp.dest(RAW_COMPUTING_DEANS_LIST_DATA_PATH))
             .on('end', resolve);
         });
       }))
@@ -125,10 +145,32 @@ gulp.task('fetch:com', ['clean:raw:com'], function (cb) {
   });
 });
 
-gulp.task('aggregate:com', function (cb) {
+gulp.task('fetch:com:faculty', function (cb) {
+  const COMPUTING_FACULTY_AWARDS_DATA_PATH = '/programmes/ug/honour/faculty';
+  const COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${FACULTY_AWARDS_DIR}`;
+
+  request
+    .get(`${COMPUTING_DATA_HOST}${COMPUTING_FACULTY_AWARDS_DATA_PATH}`)
+    .pipe(source('faculty.html'))
+    .pipe(gulp.dest(COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH))
+    .on('end', cb);
+});
+
+gulp.task('fetch:com:commencement', function (cb) {
+  const COMPUTING_COMMENCEMENT_AWARDS_DATA_PATH = '/programmes/ug/honour/commencement';
+  const COMPUTING_COMMENCEMENT_AWARDS_RAW_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${COMMENCEMENT_AWARDS_DIR}`;
+
+  request
+    .get(`${COMPUTING_DATA_HOST}${COMPUTING_COMMENCEMENT_AWARDS_DATA_PATH}`)
+    .pipe(source('commencement.html'))
+    .pipe(gulp.dest(COMPUTING_COMMENCEMENT_AWARDS_RAW_DATA_PATH))
+    .on('end', cb);
+});
+
+gulp.task('aggregate:com:deanslist', function (cb) {
   const students = {};
 
-  return gulp.src(`${RAW_COMPUTING_DATA_PATH}/*.pdf`)
+  return gulp.src(`${RAW_COMPUTING_DEANS_LIST_DATA_PATH}/*.pdf`)
     .pipe(gutil.buffer())
     .pipe(through.obj(function (files, enc, cb) {
       Promise.all(files.map(function (file) {
@@ -136,8 +178,9 @@ gulp.task('aggregate:com', function (cb) {
           const regexMatches = new RegExp(/\w*(\d{3})0[^\/]*\.pdf/).exec(file.path);
           const acadYearAndSem = regexMatches[regexMatches.length - 1];
           const acadYear = acadYearAndSem.substring(0, 2);
+          const acadYearFull = `AY${acadYear}/${parseInt(acadYear) + 1}`;
           const sem = acadYearAndSem.substring(2);
-          const acadYearSemFull = `AY${acadYear}/${parseInt(acadYear) + 1} Sem ${sem}`;
+          const acadYearSemFull = `${acadYearFull} Sem ${sem}`;
 
           pdfjs.getDocument(file.contents).then(function (pdfDocument) {
             pdfDocument.getPage(1).then((page) => {
@@ -153,7 +196,11 @@ gulp.task('aggregate:com', function (cb) {
                   if (!students.hasOwnProperty(studentName)) {
                     students[studentName] = [];
                   }
-                  students[studentName].push(acadYearSemFull);
+                  students[studentName].push({
+                    Type: DEANS_LIST,
+                    AcadYear: acadYearFull,
+                    Sem: parseInt(sem)
+                  });
                 });
 
                 gutil.log(`SoC ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
@@ -170,21 +217,24 @@ gulp.task('aggregate:com', function (cb) {
         });
 
         const file = new File({
-          path: `${COMPUTING}.json`,
+          path: `${DEANS_LIST_FILE}.json`,
           contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
         });
         cb(null, file);
       });
     }))
-    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
+    .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
+});
+
+gulp.task('fetch:com', function (cb) {
+  runSequence(['fetch:com:deanslist', 'fetch:com:faculty', 'fetch:com:commencement'], cb);
 });
 
 gulp.task('com', function (cb) {
   runSequence('clean:com', 'fetch:com', 'aggregate:com', cb);
 });
 
-gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
-  const ENGINEERING_DATA_HOST = 'http://www.eng.nus.edu.sg';
+gulp.task('fetch:eng:deanslist', ['clean:raw:eng'], function (cb) {
   const ENGINEERING_DATA_PATH = '/ugrad/awards.html';
 
   rp({
@@ -210,7 +260,7 @@ gulp.task('fetch:eng', ['clean:raw:eng'], function (cb) {
           request
             .get(`${ENGINEERING_DATA_HOST}/ugrad/${linkHref}`)
             .pipe(source(`${fileName}.pdf`))
-            .pipe(gulp.dest(RAW_ENGINEERING_DATA_PATH))
+            .pipe(gulp.dest(`${RAW_ENGINEERING_DATA_PATH}/${DEANS_LIST_DIR}`))
             .on('end', resolve);
         });
       }))
@@ -264,16 +314,18 @@ gulp.task('aggregate:eng:debug', function (cb) {
   });
 });
 
-gulp.task('aggregate:eng', function (cb) {
+gulp.task('aggregate:eng:deanslist', function (cb) {
   const students = {};
 
-  return gulp.src(`${RAW_ENGINEERING_DATA_PATH}/*.pdf`)
+  return gulp.src(`${RAW_ENGINEERING_DEANS_LIST_DATA_PATH}/*.pdf`)
     .pipe(gutil.buffer())
     .pipe(through.obj(function (files, enc, cb) {
       Promise.all(files.map(function (file) {
         return new Promise(function (resolve, reject) {
           const regexMatches = new RegExp(/\w*AY20(\d{2})-(\d{2})_Sem_(\d{1})*\.pdf/).exec(file.path);
-          const acadYearSemFull = `AY${regexMatches[1]}/${regexMatches[2]} Sem ${regexMatches[3]}`;
+          const sem = parseInt(regexMatches[3]);
+          const acadYearFull =  `AY${regexMatches[1]}/${regexMatches[2]}`;
+          const acadYearSemFull = `${acadYearFull} Sem ${sem}`;
 
           pdfjs.getDocument(file.contents).then(function (pdfDocument) {
             const numPages = pdfDocument.numPages;
@@ -311,7 +363,11 @@ gulp.task('aggregate:eng', function (cb) {
                 if (!students.hasOwnProperty(studentName)) {
                   students[studentName] = [];
                 }
-                students[studentName].push(acadYearSemFull);
+                students[studentName].push({
+                  Type: DEANS_LIST,
+                  AcadYear: acadYearFull,
+                  Sem: sem
+                });
               });
               gutil.log(`Engineering ${acadYearSemFull} Dean's List`, chalk.green('✔ ') );
               resolve();
@@ -326,34 +382,33 @@ gulp.task('aggregate:eng', function (cb) {
         });
 
         const file = new File({
-          path: `${ENGINEERING}.json`,
+          path: `${DEANS_LIST_FILE}.json`,
           contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
         });
         cb(null, file);
       });
     }))
-    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
+    .pipe(gulp.dest(PARSED_ENGINEERING_DATA_PATH));
 });
 
 gulp.task('eng', function (cb) {
-  runSequence('clean:eng', 'fetch:eng', 'aggregate:eng', cb);
+  runSequence('clean:eng', 'fetch:eng:deanslist', 'aggregate:eng:deanslist', cb);
 });
 
-gulp.task('fetch:biz', ['clean:raw:biz'], function (cb) {
-  const BUSINESS_DATA_HOST = 'http://bba.nus.edu/';
+gulp.task('fetch:biz:deanslist', ['clean:raw:biz'], function (cb) {
   const BUSINESS_DATA_PATH = '/bba/honour_deanslist.htm';
 
   request
     .get(`${BUSINESS_DATA_HOST}${BUSINESS_DATA_PATH}`)
     .pipe(source('honour_deanslist.html'))
-    .pipe(gulp.dest(RAW_BUSINESS_DATA_PATH))
+    .pipe(gulp.dest(`${RAW_BUSINESS_DATA_PATH}/${DEANS_LIST_DIR}`))
     .on('end', cb);
 });
 
-gulp.task('aggregate:biz', function (cb) {
+gulp.task('aggregate:biz:deanslist', function (cb) {
   const students = {};
 
-  return gulp.src(`${RAW_BUSINESS_DATA_PATH}/*.html`)
+  return gulp.src(`${RAW_BUSINESS_DEANS_LIST_DATA_PATH}/*.html`)
     .pipe(gutil.buffer())
     .pipe(through.obj(function (files, enc, cb) {
       Promise.all(files.map(function (file) {
@@ -396,17 +451,17 @@ gulp.task('aggregate:biz', function (cb) {
         });
 
         const file = new File({
-          path: `${BUSINESS}.json`,
+          path: `${DEANS_LIST_FILE}.json`,
           contents: new Buffer(JSON.stringify(sortedStudents, null, 2), 'utf-8')
         });
         cb(null, file);
       });
     }))
-    .pipe(gulp.dest(`./${PARSED_DATA_PATH}`));
+    .pipe(gulp.dest(PARSED_BUSINESS_DATA_PATH));
 });
 
 gulp.task('biz', function (cb) {
-  runSequence('clean:biz', 'fetch:biz', 'aggregate:biz', cb);
+  runSequence('clean:biz', 'fetch:biz:deanslist', 'aggregate:biz:deanslist', cb);
 });
 
 gulp.task('aggregate:all', function (cb) {
