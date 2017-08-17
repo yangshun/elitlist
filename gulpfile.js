@@ -163,8 +163,8 @@ gulp.task('fetch:com:faculty', function (cb) {
       });
     }))
     .then(() => {
-        cb();
-      });
+      cb();
+    });
 });
 
 gulp.task('fetch:com:commencement', function (cb) {
