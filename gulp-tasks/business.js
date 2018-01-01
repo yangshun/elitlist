@@ -4,8 +4,8 @@ const del = require('del');
 const gulp = require('gulp');
 const gutil = require('gulp-util');
 const path = require('path');
-const runSequence = require('run-sequence');
 const request = require('request');
+const runSequence = require('run-sequence');
 const source = require('vinyl-source-stream');
 const through = require('through2');
 const File = require('vinyl');
@@ -23,6 +23,7 @@ const PARSED_BUSINESS_DATA_PATH = `./${c.dataPaths.parsed}/${
 const RAW_BUSINESS_DEANS_LIST_DATA_PATH = `${RAW_BUSINESS_DATA_PATH}/${
   c.awards.deansList.dir
 }`;
+const BUSINESS_DATA_HOST = c.faculties.business.host;
 
 function cleanRawBusinessData() {
   return del([RAW_BUSINESS_DATA_PATH]);
@@ -33,13 +34,18 @@ function cleanParsedBusinessData() {
 }
 
 function fetchBusinessDeansList(cb) {
-  const businessDeansListPath =
+  const BUSINESS_DEANS_LIST_URL_PATH =
     '/bba-honour-roll/student-honour-rolls/dean-s-list';
   request
-    .get(`${c.faculties.business.host}${businessDeansListPath}`)
+    .get(`${BUSINESS_DATA_HOST}${BUSINESS_DEANS_LIST_URL_PATH}`)
     .pipe(source('honour_deanslist.html'))
     .pipe(gulp.dest(`${RAW_BUSINESS_DATA_PATH}/${c.awards.deansList.dir}`))
-    .on('end', cb);
+    .on('end', () => {
+      gutil.log(
+        `${c.faculties.business.name} ${c.awards.deansList.name} page fetched`,
+      );
+      cb();
+    });
 }
 
 function aggregateBusinessDeansList(cb) {
@@ -144,7 +150,7 @@ function aggregateBusinessAwards() {
 function businessEndToEnd() {
   runSequence(
     'clean:biz',
-    'fetch:biz:deanslist',
+    'fetch:biz',
     'aggregate:biz:deanslist',
     'aggregate:biz',
     cb,
