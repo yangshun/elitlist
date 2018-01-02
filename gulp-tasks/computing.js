@@ -44,7 +44,7 @@ function fetchComputingDeansList(cb) {
   rp({
     uri: `${COMPUTING_DATA_HOST}${COMPUTING_DEANS_LIST_URL_PATH}`,
     transform: body => cheerio.load(body),
-  }).then(function($) {
+  }).then($ => {
     gutil.log(
       `${c.faculties.computing.name} ${c.awards.deansList.name} page fetched`,
     );
@@ -84,18 +84,17 @@ function fetchComputingFaculty(cb) {
   }`;
 
   Promise.all(
-    COMPUTING_FACULTY_AWARDS_DATA_PATHS.map(function(
-      computingFacultyAwardsDataPath,
-      index,
-    ) {
-      return new Promise((resolve, reject) => {
-        request
-          .get(`${COMPUTING_DATA_HOST}${computingFacultyAwardsDataPath}`)
-          .pipe(source(`faculty-${index}.html`))
-          .pipe(gulp.dest(COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH))
-          .on('end', resolve);
-      });
-    }),
+    COMPUTING_FACULTY_AWARDS_DATA_PATHS.map(
+      (computingFacultyAwardsDataPath, index) => {
+        return new Promise((resolve, reject) => {
+          request
+            .get(`${COMPUTING_DATA_HOST}${computingFacultyAwardsDataPath}`)
+            .pipe(source(`faculty-${index}.html`))
+            .pipe(gulp.dest(COMPUTING_FACULTY_AWARDS_RAW_DATA_PATH))
+            .on('end', resolve);
+        });
+      },
+    ),
   ).then(() => {
     cb();
   });
@@ -117,15 +116,14 @@ function fetchComputingCommencement(cb) {
 
 function parseComputingDeansList(cb) {
   const students = {};
-
   return gulp
     .src(`${RAW_COMPUTING_DEANS_LIST_DATA_PATH}/*.pdf`)
     .pipe(gutil.buffer())
     .pipe(
-      through.obj(function(files, enc, cb) {
+      through.obj((files, enc, cb) => {
         Promise.all(
-          files.map(function(file) {
-            return new Promise(function(resolve, reject) {
+          files.map(file => {
+            return new Promise((resolve, reject) => {
               const regexMatches = new RegExp(/\w*(\d{3})0[^\/]*\.pdf/).exec(
                 file.path,
               );
@@ -135,7 +133,7 @@ function parseComputingDeansList(cb) {
               const sem = acadYearAndSem.substring(2);
               const acadYearSemFull = `${acadYearFull} Sem ${sem}`;
 
-              pdfjs.getDocument(file.contents).then(function(pdfDocument) {
+              pdfjs.getDocument(file.contents).then(pdfDocument => {
                 pdfDocument.getPage(1).then(page => {
                   page.getTextContent().then(content => {
                     const textEntities = content.items.map(item => {
@@ -170,12 +168,15 @@ function parseComputingDeansList(cb) {
           }),
         ).then(() => {
           const sortedStudents = {};
+          if (Object.keys(students).length === 0) {
+            console.warn('Empty data. The data format has likely changed.');
+            return;
+          }
           Object.keys(students)
             .sort()
-            .forEach(function(name) {
+            .forEach(name => {
               sortedStudents[nameFormatter(name)] = students[name].sort();
             });
-
           const file = new File({
             path: `${c.awards.deansList.fileName}.json`,
             contents: new Buffer(
@@ -192,7 +193,6 @@ function parseComputingDeansList(cb) {
 
 function parseComputingFaculty(cb) {
   const students = {};
-
   return gulp
     .src(`${RAW_COMPUTING_FACULTY_DATA_PATH}/*.html`)
     .pipe(gutil.buffer())
@@ -243,12 +243,15 @@ function parseComputingFaculty(cb) {
           ),
         ).then(() => {
           const sortedStudents = {};
+          if (Object.keys(students).length === 0) {
+            console.warn('Empty data. The data format has likely changed.');
+            return;
+          }
           Object.keys(students)
             .sort()
-            .forEach(function(name) {
+            .forEach(name => {
               sortedStudents[name] = students[name].sort();
             });
-
           const file = new File({
             path: `${c.awards.faculty.fileName}.json`,
             contents: new Buffer(
@@ -265,7 +268,6 @@ function parseComputingFaculty(cb) {
 
 function parseComputingCommencement(cb) {
   const students = {};
-
   return gulp
     .src(`${RAW_COMPUTING_COMMENCEMENT_DATA_PATH}/*.html`)
     .pipe(gutil.buffer())
@@ -327,12 +329,15 @@ function parseComputingCommencement(cb) {
           ),
         ).then(() => {
           const sortedStudents = {};
+          if (Object.keys(students).length === 0) {
+            console.warn('Empty data. The data format has likely changed.');
+            return;
+          }
           Object.keys(students)
             .sort()
-            .forEach(function(name) {
+            .forEach(name => {
               sortedStudents[name] = students[name].sort();
             });
-
           const file = new File({
             path: `${c.awards.commencement.fileName}.json`,
             contents: new Buffer(

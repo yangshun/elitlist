@@ -19,12 +19,12 @@ function combineAwardsForFaculty(parsedDataPath) {
     })
     .pipe(gutil.buffer())
     .pipe(
-      through.obj(function(files, enc, cb) {
+      through.obj((files, enc, cb) => {
         Promise.all(
-          files.map(function(file) {
-            return new Promise(function(resolve, reject) {
+          files.map(file => {
+            return new Promise((resolve, reject) => {
               const studentsForType = JSON.parse(file.contents.toString());
-              Object.keys(studentsForType).forEach(function(name) {
+              Object.keys(studentsForType).forEach(name => {
                 if (!students.hasOwnProperty(name)) {
                   students[name] = [];
                 }
@@ -38,9 +38,7 @@ function combineAwardsForFaculty(parsedDataPath) {
           const studentsData = {};
           Object.keys(students)
             .sort()
-            .forEach(function(name) {
-              return (studentsData[name] = students[name]);
-            });
+            .forEach(name => (studentsData[name] = students[name]));
 
           const file = new File({
             path: `${c.aggregated.fileName}.json`,

@@ -41,7 +41,7 @@ function fetchEngineeringDeansList(cb) {
   rp({
     uri: `${ENGINEERING_DATA_HOST}${ENGINEERING_DEANS_LIST_URL_PATH}`,
     transform: body => cheerio.load(body),
-  }).then(function($) {
+  }).then($ => {
     gutil.log("Engineering Dean's List page fetched");
     const $links = $('.ts-advanced-tables-wrapper a');
     let linksHrefs = $links
@@ -51,8 +51,8 @@ function fetchEngineeringDeansList(cb) {
       .toArray()
       .filter(url => /\.pdf$/.test(url));
     Promise.all(
-      linksHrefs.map(function(linkHref) {
-        return new Promise(function(resolve, reject) {
+      linksHrefs.map(linkHref => {
+        return new Promise((resolve, reject) => {
           const fileName = _.last(linkHref.split('/'));
           request
             .get(linkHref)
@@ -73,15 +73,14 @@ function fetchEngineeringDeansList(cb) {
 
 function parseEngineeringDeansList(cb) {
   const students = {};
-
   return gulp
     .src(`${RAW_ENGINEERING_DEANS_LIST_DATA_PATH}/*.pdf`)
     .pipe(gutil.buffer())
     .pipe(
-      through.obj(function(files, enc, cb) {
+      through.obj((files, enc, cb) => {
         Promise.all(
-          files.map(function(file) {
-            return new Promise(function(resolve, reject) {
+          files.map(file => {
+            return new Promise((resolve, reject) => {
               const regexMatches = new RegExp(
                 /AY(\d{2})(\d{2})-.*(\d)\.pdf/,
               ).exec(file.path);
@@ -89,12 +88,12 @@ function parseEngineeringDeansList(cb) {
               const acadYearFull = `${regexMatches[1]}/${regexMatches[2]}`;
               const acadYearSemFull = `${acadYearFull} Sem ${sem}`;
 
-              pdfjs.getDocument(file.contents).then(function(pdfDocument) {
+              pdfjs.getDocument(file.contents).then(pdfDocument => {
                 const numPages = pdfDocument.numPages;
                 const rows = {};
                 Promise.all(
-                  _.range(1, numPages + 1).map(function(pageNum) {
-                    return new Promise(function(resolve2, reject2) {
+                  _.range(1, numPages + 1).map(pageNum => {
+                    return new Promise((resolve2, reject2) => {
                       pdfDocument.getPage(pageNum).then(page => {
                         page.getTextContent().then(content => {
                           content.items.forEach(item => {
@@ -114,7 +113,7 @@ function parseEngineeringDeansList(cb) {
                       });
                     });
                   }),
-                ).then(function() {
+                ).then(() => {
                   const studentNames = [];
                   _.values(rows).forEach(row => {
                     // Removes the S/N, (DDP), Department (e.g. MPE3) from each row
@@ -152,12 +151,15 @@ function parseEngineeringDeansList(cb) {
           }),
         ).then(() => {
           const sortedStudents = {};
+          if (Object.keys(students).length === 0) {
+            console.warn('Empty data. The data format has likely changed.');
+            return;
+          }
           Object.keys(students)
             .sort()
-            .forEach(function(name) {
+            .forEach(name => {
               sortedStudents[name] = students[name].sort();
             });
-
           const file = new File({
             path: `${c.awards.deansList.fileName}.json`,
             contents: new Buffer(

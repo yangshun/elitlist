@@ -52,9 +52,9 @@ function parseBusinessDeansList(cb) {
     .src(`${RAW_BUSINESS_DEANS_LIST_DATA_PATH}/*.html`)
     .pipe(gutil.buffer())
     .pipe(
-      through.obj(function(files, enc, cb) {
+      through.obj((files, enc, cb) => {
         Promise.all(
-          files.map(function(file) {
+          files.map(file => {
             return new Promise(function(resolve, reject) {
               const $ = cheerio.load(file.contents.toString());
               const $acadYears = $('.item-page .list-unstyled li');
@@ -65,7 +65,6 @@ function parseBusinessDeansList(cb) {
                 const regexMatches = new RegExp(/AY20(\d{2})\/20(\d{2})/).exec(
                   acadYearHeader,
                 );
-                const sem = 2;
                 const acadYearFull = `${regexMatches[1]}/${regexMatches[2]}`;
                 $acadYear.find('tr').each(function(rowNumber) {
                   // This is the useless row which says 'SEMESTER 1 / SEMESTER 2'.
@@ -111,22 +110,15 @@ function parseBusinessDeansList(cb) {
           }),
         ).then(() => {
           const sortedStudents = {};
-          Object.keys(students)
-            .sort()
-            .forEach(function(name) {
-              sortedStudents[name] = students[name].sort();
-            });
-
           if (Object.keys(students).length === 0) {
-            console.warn(
-              `Empty data for ${
-                c.faculties.business.name
-              }. The data format has likely changed.`,
-            );
-            throw `Empty data for ${c.faculties.business.name}`;
+            console.warn('Empty data. The data format has likely changed.');
             return;
           }
-
+          Object.keys(students)
+            .sort()
+            .forEach(name => {
+              sortedStudents[name] = students[name].sort();
+            });
           const file = new File({
             path: `${c.awards.deansList.fileName}.json`,
             contents: new Buffer(
