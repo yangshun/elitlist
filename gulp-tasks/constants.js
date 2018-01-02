@@ -37,7 +37,7 @@ module.exports = {
       fileName: 'Commencement',
     },
   },
-  aggregated: {
-    fileName: 'Aggregated',
+  combined: {
+    fileName: 'Combined',
   },
 };

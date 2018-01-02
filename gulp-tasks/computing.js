@@ -3,6 +3,7 @@ const cheerio = require('cheerio');
 const del = require('del');
 const gulp = require('gulp');
 const gutil = require('gulp-util');
+const path = require('path');
 const pdfjs = require('pdfjs-dist');
 const request = require('request');
 const rp = require('request-promise');
@@ -14,21 +15,26 @@ const combine = require('./combine');
 const c = require('./constants');
 const nameFormatter = require('../utils/nameFormatter');
 
-const RAW_COMPUTING_DATA_PATH = `./${c.dataPaths.raw}/${
-  c.faculties.computing.dir
-}`;
-const PARSED_COMPUTING_DATA_PATH = `./${c.dataPaths.parsed}/${
-  c.faculties.computing.dir
-}`;
-const RAW_COMPUTING_DEANS_LIST_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${
-  c.awards.deansList.dir
-}`;
-const RAW_COMPUTING_FACULTY_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${
-  c.awards.faculty.dir
-}`;
-const RAW_COMPUTING_COMMENCEMENT_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${
-  c.awards.commencement.dir
-}`;
+const RAW_COMPUTING_DATA_PATH = path.join(
+  c.dataPaths.raw,
+  c.faculties.computing.dir,
+);
+const PARSED_COMPUTING_DATA_PATH = path.join(
+  c.dataPaths.parsed,
+  c.faculties.computing.dir,
+);
+const RAW_COMPUTING_DEANS_LIST_DATA_PATH = path.join(
+  RAW_COMPUTING_DATA_PATH,
+  c.awards.deansList.dir,
+);
+const RAW_COMPUTING_FACULTY_DATA_PATH = path.join(
+  RAW_COMPUTING_DATA_PATH,
+  c.awards.faculty.dir,
+);
+const RAW_COMPUTING_COMMENCEMENT_DATA_PATH = path.join(
+  RAW_COMPUTING_DATA_PATH,
+  c.awards.commencement.dir,
+);
 const COMPUTING_DATA_HOST = c.faculties.computing.host;
 
 function cleanRawComputingData() {
@@ -103,9 +109,10 @@ function fetchComputingFaculty(cb) {
 function fetchComputingCommencement(cb) {
   const COMPUTING_COMMENCEMENT_AWARDS_DATA_PATH =
     '/programmes/ug/honour/commencement';
-  const COMPUTING_COMMENCEMENT_AWARDS_RAW_DATA_PATH = `${RAW_COMPUTING_DATA_PATH}/${
-    c.awards.commencement.dir
-  }`;
+  const COMPUTING_COMMENCEMENT_AWARDS_RAW_DATA_PATH = path.join(
+    RAW_COMPUTING_DATA_PATH,
+    c.awards.commencement.dir,
+  );
 
   request
     .get(`${COMPUTING_DATA_HOST}${COMPUTING_COMMENCEMENT_AWARDS_DATA_PATH}`)
@@ -117,7 +124,7 @@ function fetchComputingCommencement(cb) {
 function parseComputingDeansList(cb) {
   const students = {};
   return gulp
-    .src(`${RAW_COMPUTING_DEANS_LIST_DATA_PATH}/*.pdf`)
+    .src(path.join(RAW_COMPUTING_DEANS_LIST_DATA_PATH, '*.pdf'))
     .pipe(gutil.buffer())
     .pipe(
       through.obj((files, enc, cb) => {
@@ -194,7 +201,7 @@ function parseComputingDeansList(cb) {
 function parseComputingFaculty(cb) {
   const students = {};
   return gulp
-    .src(`${RAW_COMPUTING_FACULTY_DATA_PATH}/*.html`)
+    .src(path.join(RAW_COMPUTING_FACULTY_DATA_PATH, '*.html'))
     .pipe(gutil.buffer())
     .pipe(
       through.obj((files, enc, cb) =>
@@ -269,7 +276,7 @@ function parseComputingFaculty(cb) {
 function parseComputingCommencement(cb) {
   const students = {};
   return gulp
-    .src(`${RAW_COMPUTING_COMMENCEMENT_DATA_PATH}/*.html`)
+    .src(path.join(RAW_COMPUTING_COMMENCEMENT_DATA_PATH, '*.html'))
     .pipe(gutil.buffer())
     .pipe(
       through.obj((files, enc, cb) => {

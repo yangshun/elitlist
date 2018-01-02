@@ -41,7 +41,7 @@ function combineAwardsForFaculty(parsedDataPath) {
             .forEach(name => (studentsData[name] = students[name]));
 
           const file = new File({
-            path: `${c.aggregated.fileName}.json`,
+            path: `${c.combined.fileName}.json`,
             contents: new Buffer(
               JSON.stringify(studentsData, null, 2),
               'utf-8',
@@ -65,7 +65,7 @@ function combineStudentsAcrossFaculty(cb) {
     .src(
       faculties.map(
         faculty =>
-          `${c.dataPaths.parsed}/${faculty}/${c.aggregated.fileName}.json`,
+          `${c.dataPaths.parsed}/${faculty}/${c.combined.fileName}.json`,
       ),
     )
     .pipe(gutil.buffer())
@@ -96,7 +96,7 @@ function combineStudentsAcrossFaculty(cb) {
             .map(name => students[name]);
 
           const file = new File({
-            path: `${c.aggregated.fileName}.json`,
+            path: `${c.combined.fileName}.json`,
             contents: new Buffer(
               JSON.stringify(studentsData, null, 2),
               'utf-8',

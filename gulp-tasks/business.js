@@ -3,6 +3,7 @@ const cheerio = require('cheerio');
 const del = require('del');
 const gulp = require('gulp');
 const gutil = require('gulp-util');
+const path = require('path');
 const request = require('request');
 const source = require('vinyl-source-stream');
 const through = require('through2');
@@ -12,15 +13,18 @@ const combine = require('./combine');
 const c = require('./constants');
 const nameFormatter = require('../utils/nameFormatter');
 
-const RAW_BUSINESS_DATA_PATH = `./${c.dataPaths.raw}/${
-  c.faculties.business.dir
-}`;
-const PARSED_BUSINESS_DATA_PATH = `./${c.dataPaths.parsed}/${
-  c.faculties.business.dir
-}`;
-const RAW_BUSINESS_DEANS_LIST_DATA_PATH = `${RAW_BUSINESS_DATA_PATH}/${
-  c.awards.deansList.dir
-}`;
+const RAW_BUSINESS_DATA_PATH = path.join(
+  c.dataPaths.raw,
+  c.faculties.business.dir,
+);
+const PARSED_BUSINESS_DATA_PATH = path.join(
+  c.dataPaths.parsed,
+  c.faculties.business.dir,
+);
+const RAW_BUSINESS_DEANS_LIST_DATA_PATH = path.join(
+  RAW_BUSINESS_DATA_PATH,
+  c.awards.deansList.dir,
+);
 const BUSINESS_DATA_HOST = c.faculties.business.host;
 
 function cleanRawBusinessData() {
@@ -37,7 +41,7 @@ function fetchBusinessDeansList(cb) {
   request
     .get(`${BUSINESS_DATA_HOST}${BUSINESS_DEANS_LIST_URL_PATH}`)
     .pipe(source('honour_deanslist.html'))
-    .pipe(gulp.dest(`${RAW_BUSINESS_DATA_PATH}/${c.awards.deansList.dir}`))
+    .pipe(gulp.dest(path.join(RAW_BUSINESS_DATA_PATH, c.awards.deansList.dir)))
     .on('end', () => {
       gutil.log(
         `${c.faculties.business.name} ${c.awards.deansList.name} page fetched`,
@@ -49,7 +53,7 @@ function fetchBusinessDeansList(cb) {
 function parseBusinessDeansList(cb) {
   const students = {};
   return gulp
-    .src(`${RAW_BUSINESS_DEANS_LIST_DATA_PATH}/*.html`)
+    .src(path.join(RAW_BUSINESS_DEANS_LIST_DATA_PATH, '*.html'))
     .pipe(gutil.buffer())
     .pipe(
       through.obj((files, enc, cb) => {

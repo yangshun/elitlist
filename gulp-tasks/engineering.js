@@ -4,6 +4,7 @@ const cheerio = require('cheerio');
 const del = require('del');
 const gulp = require('gulp');
 const gutil = require('gulp-util');
+const path = require('path');
 const pdfjs = require('pdfjs-dist');
 const request = require('request');
 const rp = require('request-promise');
@@ -15,15 +16,18 @@ const combine = require('./combine');
 const c = require('./constants');
 const nameFormatter = require('../utils/nameFormatter');
 
-const RAW_ENGINEERING_DATA_PATH = `./${c.dataPaths.raw}/${
-  c.faculties.engineering.dir
-}`;
-const PARSED_ENGINEERING_DATA_PATH = `./${c.dataPaths.parsed}/${
-  c.faculties.engineering.dir
-}`;
-const RAW_ENGINEERING_DEANS_LIST_DATA_PATH = `${RAW_ENGINEERING_DATA_PATH}/${
-  c.awards.deansList.dir
-}`;
+const RAW_ENGINEERING_DATA_PATH = path.join(
+  c.dataPaths.raw,
+  c.faculties.engineering.dir,
+);
+const PARSED_ENGINEERING_DATA_PATH = path.join(
+  c.dataPaths.parsed,
+  c.faculties.engineering.dir,
+);
+const RAW_ENGINEERING_DEANS_LIST_DATA_PATH = path.join(
+  RAW_ENGINEERING_DATA_PATH,
+  c.awards.deansList.dir,
+);
 const ENGINEERING_DATA_HOST = c.faculties.engineering.host;
 
 function cleanRawEngineeringData() {
@@ -59,7 +63,7 @@ function fetchEngineeringDeansList(cb) {
             .pipe(source(fileName))
             .pipe(
               gulp.dest(
-                `${RAW_ENGINEERING_DATA_PATH}/${c.awards.deansList.dir}`,
+                path.join(RAW_ENGINEERING_DATA_PATH, c.awards.deansList.dir),
               ),
             )
             .on('end', resolve);
@@ -74,7 +78,7 @@ function fetchEngineeringDeansList(cb) {
 function parseEngineeringDeansList(cb) {
   const students = {};
   return gulp
-    .src(`${RAW_ENGINEERING_DEANS_LIST_DATA_PATH}/*.pdf`)
+    .src(path.join(RAW_ENGINEERING_DEANS_LIST_DATA_PATH, '*.pdf'))
     .pipe(gutil.buffer())
     .pipe(
       through.obj((files, enc, cb) => {
