@@ -3,11 +3,9 @@ const cheerio = require('cheerio');
 const del = require('del');
 const gulp = require('gulp');
 const gutil = require('gulp-util');
-const path = require('path');
 const pdfjs = require('pdfjs-dist');
 const request = require('request');
 const rp = require('request-promise');
-const runSequence = require('run-sequence');
 const source = require('vinyl-source-stream');
 const through = require('through2');
 const File = require('vinyl');
@@ -115,13 +113,6 @@ function fetchComputingCommencement(cb) {
     .pipe(source('commencement.html'))
     .pipe(gulp.dest(COMPUTING_COMMENCEMENT_AWARDS_RAW_DATA_PATH))
     .on('end', cb);
-}
-
-function fetchComputingData(cb) {
-  runSequence(
-    ['fetch:com:deanslist', 'fetch:com:faculty', 'fetch:com:commencement'],
-    cb,
-  );
 }
 
 function parseComputingDeansList(cb) {
@@ -366,7 +357,6 @@ module.exports = {
   fetchComputingDeansList,
   fetchComputingFaculty,
   fetchComputingCommencement,
-  fetchComputingData,
   parseComputingDeansList,
   parseComputingFaculty,
   parseComputingCommencement,

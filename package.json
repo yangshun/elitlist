@@ -28,7 +28,6 @@
     "pdfjs-dist": "^1.5.296",
     "request": "^2.72.0",
     "request-promise": "^3.0.0",
-    "run-sequence": "^1.2.1",
     "through2": "^2.0.1",
     "vinyl": "^1.1.1",
     "vinyl-source-stream": "^2.0.0"
