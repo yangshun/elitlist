@@ -1,9 +1,14 @@
 module.exports = {
   dataPaths: {
     raw: 'raw',
-    parsed: 'data',
+    parsed: 'parsed',
   },
   faculties: {
+    business: {
+      name: 'Business',
+      dir: 'business',
+      host: 'http://bba.nus.edu',
+    },
     computing: {
       name: 'Computing',
       dir: 'computing',
@@ -13,11 +18,6 @@ module.exports = {
       name: 'Engineering',
       dir: 'engineering',
       host: 'https://www.eng.nus.edu.sg',
-    },
-    business: {
-      name: 'Business',
-      dir: 'business',
-      host: 'http://bba.nus.edu',
     },
   },
   awards: {

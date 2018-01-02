@@ -84,7 +84,6 @@ function parseEngineeringDeansList(cb) {
         Promise.all(
           files.map(function(file) {
             return new Promise(function(resolve, reject) {
-              console.log(file.path);
               const regexMatches = new RegExp(
                 /AY(\d{2})(\d{2})-.*(\d)\.pdf/,
               ).exec(file.path);

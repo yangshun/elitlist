@@ -13,8 +13,9 @@ const source = require('vinyl-source-stream');
 const through = require('through2');
 const File = require('vinyl');
 
-const c = require('./gulp-tasks/constants');
 const businessTasks = require('./gulp-tasks/business');
+const c = require('./gulp-tasks/constants');
+const combine = require('./gulp-tasks/combine');
 const computingTasks = require('./gulp-tasks/computing');
 const engineeringTasks = require('./gulp-tasks/engineering');
 
@@ -94,4 +95,12 @@ gulp.task('combine:eng', engineeringTasks.combineEngineeringAwards);
 gulp.task(
   'eng',
   gulp.series('clean:eng', 'fetch:eng', 'parse:eng', 'combine:eng'),
+);
+
+// Combined tasks.
+gulp.task('combine', combine.combineStudentsAcrossFaculty);
+gulp.task('clean', gulp.parallel('clean:biz', 'clean:com', 'clean:eng'));
+gulp.task(
+  'default',
+  gulp.series(gulp.parallel('biz', 'com', 'eng'), 'combine'),
 );
