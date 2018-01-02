@@ -1,17 +1,4 @@
-const _ = require('lodash');
-const chalk = require('chalk');
-const cheerio = require('cheerio');
-const del = require('del');
-const fs = require('graceful-fs');
 const gulp = require('gulp');
-const gutil = require('gulp-util');
-const pdfjs = require('pdfjs-dist');
-const request = require('request');
-const runSequence = require('run-sequence');
-const rp = require('request-promise');
-const source = require('vinyl-source-stream');
-const through = require('through2');
-const File = require('vinyl');
 
 const businessTasks = require('./gulp-tasks/business');
 const c = require('./gulp-tasks/constants');
