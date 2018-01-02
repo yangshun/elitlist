@@ -5,7 +5,7 @@ const File = require('vinyl');
 
 const c = require('./constants');
 
-function combineFacultyData(parsedDataPath) {
+function combineAwardsForFaculty(parsedDataPath) {
   const students = {};
   const fileTypes = [
     c.awards.deansList.fileName,
@@ -13,7 +13,9 @@ function combineFacultyData(parsedDataPath) {
     c.awards.commencement.fileName,
   ];
   return gulp
-    .src(fileTypes.map(fileType => `${parsedDataPath}/${fileType}.json`))
+    .src(fileTypes.map(fileType => `${parsedDataPath}/${fileType}.json`), {
+      allowEmpty: true,
+    })
     .pipe(gutil.buffer())
     .pipe(
       through.obj(function(files, enc, cb) {
@@ -54,5 +56,5 @@ function combineFacultyData(parsedDataPath) {
 }
 
 module.exports = {
-  combineFacultyData,
+  combineAwardsForFaculty,
 };

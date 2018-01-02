@@ -12,7 +12,7 @@ const source = require('vinyl-source-stream');
 const through = require('through2');
 const File = require('vinyl');
 
-const aggregate = require('./aggregate');
+const combine = require('./combine');
 const c = require('./constants');
 const nameFormatter = require('../utils/nameFormatter');
 
@@ -124,7 +124,7 @@ function fetchComputingData(cb) {
   );
 }
 
-function aggregateComputingDeansList(cb) {
+function parseComputingDeansList(cb) {
   const students = {};
 
   return gulp
@@ -199,7 +199,7 @@ function aggregateComputingDeansList(cb) {
     .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
 }
 
-function aggregateComputingFaculty(cb) {
+function parseComputingFaculty(cb) {
   const students = {};
 
   return gulp
@@ -272,7 +272,7 @@ function aggregateComputingFaculty(cb) {
     .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
 }
 
-function aggregateComputingCommencement(cb) {
+function parseComputingCommencement(cb) {
   const students = {};
 
   return gulp
@@ -356,8 +356,8 @@ function aggregateComputingCommencement(cb) {
     .pipe(gulp.dest(PARSED_COMPUTING_DATA_PATH));
 }
 
-function aggregateComputingAwards() {
-  return aggregateForFaculty(PARSED_COMPUTING_DATA_PATH);
+function combineComputingAwards() {
+  return combine.combineAwardsForFaculty(PARSED_COMPUTING_DATA_PATH);
 }
 
 module.exports = {
@@ -367,8 +367,8 @@ module.exports = {
   fetchComputingFaculty,
   fetchComputingCommencement,
   fetchComputingData,
-  aggregateComputingDeansList,
-  aggregateComputingFaculty,
-  aggregateComputingCommencement,
-  aggregateComputingAwards,
+  parseComputingDeansList,
+  parseComputingFaculty,
+  parseComputingCommencement,
+  combineComputingAwards,
 };

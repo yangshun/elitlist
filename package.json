@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/yangshun/elitlist.git"
   },
-  "author": "",
+  "author": "Yangshun Tay",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/yangshun/elitlist/issues"
@@ -21,16 +21,16 @@
     "cheerio": "^0.20.0",
     "del": "^2.2.0",
     "graceful-fs": "^4.1.4",
-    "gulp": "^3.9.1",
+    "gulp": "^4.0.0",
     "gulp-remote-src": "^0.4.1",
     "gulp-util": "^3.0.7",
     "lodash": "^4.13.1",
-    "pdfjs-dist": "^1.5.296"
+    "pdfjs-dist": "^1.5.296",
     "request": "^2.72.0",
     "request-promise": "^3.0.0",
     "run-sequence": "^1.2.1",
     "through2": "^2.0.1",
     "vinyl": "^1.1.1",
-    "vinyl-source-stream": "^1.1.0"
+    "vinyl-source-stream": "^2.0.0"
   }
 }

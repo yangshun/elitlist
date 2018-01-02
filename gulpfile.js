@@ -24,56 +24,52 @@ gulp.task('clean:biz', gulp.parallel('clean:raw:biz', 'clean:data:biz'));
 
 gulp.task(
   'fetch:biz:deanslist',
-  ['clean:raw:biz'],
-  businessTasks.fetchBusinessDeansList,
+  gulp.series('clean:raw:biz', businessTasks.fetchBusinessDeansList),
 );
-gulp.task('fetch:biz', ['fetch:biz:deanslist']);
+gulp.task('fetch:biz', gulp.parallel('fetch:biz:deanslist'));
 
-gulp.task('aggregate:biz:deanslist', businessTasks.aggregateBusinessDeansList);
-gulp.task('aggregate:biz', businessTasks.aggregateBusinessAwards);
-gulp.task('biz', [
-  'clean:biz',
-  'fetch:biz',
-  'aggregate:biz:deanslist',
-  'aggregate:biz',
-]);
+gulp.task('parse:biz:deanslist', businessTasks.parseBusinessDeansList);
+gulp.task('parse:biz', gulp.parallel('parse:biz:deanslist'));
+
+gulp.task('combine:biz', businessTasks.combineBusinessAwards);
+
+gulp.task(
+  'biz',
+  gulp.series('clean:biz', 'fetch:biz', 'parse:biz', 'combine:biz'),
+);
 
 // Computing tasks.
 gulp.task('clean:raw:com', computingTasks.cleanRawComputingData);
 gulp.task('clean:data:com', computingTasks.cleanParsedComputingData);
-gulp.task('clean:com', ['clean:raw:com', 'clean:data:com']);
+gulp.task('clean:com', gulp.parallel('clean:raw:com', 'clean:data:com'));
 
 gulp.task('fetch:com:deanslist', computingTasks.fetchComputingDeansList);
 gulp.task('fetch:com:faculty', computingTasks.fetchComputingFaculty);
 gulp.task('fetch:com:commencement', computingTasks.fetchComputingCommencement);
-gulp.task('fetch:com', [
-  'fetch:com:deanslist',
-  'fetch:com:faculty',
-  'fetch:com:commencement',
-]);
-
 gulp.task(
-  'aggregate:com:deanslist',
-  computingTasks.aggregateComputingDeansList,
-);
-gulp.task('aggregate:com:faculty', computingTasks.aggregateComputingFaculty);
-gulp.task(
-  'aggregate:com:commencement',
-  computingTasks.aggregateComputingCommencement,
+  'fetch:com',
+  gulp.parallel(
+    'fetch:com:deanslist',
+    'fetch:com:faculty',
+    'fetch:com:commencement',
+  ),
 );
 
-gulp.task('aggregate:com', computingTasks.aggregateComputingAwards);
+gulp.task('parse:com:deanslist', computingTasks.parseComputingDeansList);
+gulp.task('parse:com:faculty', computingTasks.parseComputingFaculty);
+gulp.task('parse:com:commencement', computingTasks.parseComputingCommencement);
+gulp.task(
+  'parse:com',
+  gulp.parallel(
+    'parse:com:deanslist',
+    'parse:com:faculty',
+    'parse:com:commencement',
+  ),
+);
 
-gulp.task('com', function(cb) {
-  runSequence(
-    'clean:com',
-    'fetch:com',
-    [
-      'aggregate:com:deanslist',
-      'aggregate:com:faculty',
-      'aggregate:com:commencement',
-    ],
-    'aggregate:com',
-    cb,
-  );
-});
+gulp.task('combine:com', computingTasks.combineComputingAwards);
+
+gulp.task(
+  'com',
+  gulp.series('clean:com', 'fetch:com', 'parse:com', 'combine:com'),
+);

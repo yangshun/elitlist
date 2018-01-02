@@ -10,7 +10,7 @@ const source = require('vinyl-source-stream');
 const through = require('through2');
 const File = require('vinyl');
 
-const aggregate = require('./aggregate');
+const combine = require('./combine');
 const c = require('./constants');
 const nameFormatter = require('../utils/nameFormatter');
 
@@ -48,7 +48,7 @@ function fetchBusinessDeansList(cb) {
     });
 }
 
-function aggregateBusinessDeansList(cb) {
+function parseBusinessDeansList(cb) {
   const students = {};
   return gulp
     .src(`${RAW_BUSINESS_DEANS_LIST_DATA_PATH}/*.html`)
@@ -143,25 +143,14 @@ function aggregateBusinessDeansList(cb) {
     .pipe(gulp.dest(PARSED_BUSINESS_DATA_PATH));
 }
 
-function aggregateBusinessAwards() {
-  return aggregate.combineFacultyData(PARSED_BUSINESS_DATA_PATH);
-}
-
-function businessEndToEnd() {
-  runSequence(
-    'clean:biz',
-    'fetch:biz',
-    'aggregate:biz:deanslist',
-    'aggregate:biz',
-    cb,
-  );
+function combineBusinessAwards() {
+  return combine.combineAwardsForFaculty(PARSED_BUSINESS_DATA_PATH);
 }
 
 module.exports = {
   cleanRawBusinessData,
   cleanParsedBusinessData,
   fetchBusinessDeansList,
-  aggregateBusinessDeansList,
-  aggregateBusinessAwards,
-  businessEndToEnd,
+  parseBusinessDeansList,
+  combineBusinessAwards,
 };
