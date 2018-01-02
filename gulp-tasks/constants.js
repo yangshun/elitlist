@@ -7,12 +7,12 @@ module.exports = {
     computing: {
       name: 'Computing',
       dir: 'computing',
-      host: 'http://www.comp.nus.edu.sg/',
+      host: 'https://www.comp.nus.edu.sg',
     },
     engineering: {
       name: 'Engineering',
       dir: 'engineering',
-      host: 'http://www.eng.nus.edu.sg',
+      host: 'https://www.eng.nus.edu.sg',
     },
     business: {
       name: 'Business',

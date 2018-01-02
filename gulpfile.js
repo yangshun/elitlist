@@ -16,6 +16,7 @@ const File = require('vinyl');
 const c = require('./gulp-tasks/constants');
 const businessTasks = require('./gulp-tasks/business');
 const computingTasks = require('./gulp-tasks/computing');
+const engineeringTasks = require('./gulp-tasks/engineering');
 
 // Business tasks.
 gulp.task('clean:raw:biz', businessTasks.cleanRawBusinessData);
@@ -72,4 +73,25 @@ gulp.task('combine:com', computingTasks.combineComputingAwards);
 gulp.task(
   'com',
   gulp.series('clean:com', 'fetch:com', 'parse:com', 'combine:com'),
+);
+
+// Engineering tasks.
+gulp.task('clean:raw:eng', engineeringTasks.cleanRawEngineeringData);
+gulp.task('clean:data:eng', engineeringTasks.cleanParsedEngineeringData);
+gulp.task('clean:eng', gulp.parallel('clean:raw:eng', 'clean:data:eng'));
+
+gulp.task(
+  'fetch:eng:deanslist',
+  gulp.series('clean:raw:eng', engineeringTasks.fetchEngineeringDeansList),
+);
+gulp.task('fetch:eng', gulp.parallel('fetch:eng:deanslist'));
+
+gulp.task('parse:eng:deanslist', engineeringTasks.parseEngineeringDeansList);
+gulp.task('parse:eng', gulp.parallel('parse:eng:deanslist'));
+
+gulp.task('combine:eng', engineeringTasks.combineEngineeringAwards);
+
+gulp.task(
+  'eng',
+  gulp.series('clean:eng', 'fetch:eng', 'parse:eng', 'combine:eng'),
 );
